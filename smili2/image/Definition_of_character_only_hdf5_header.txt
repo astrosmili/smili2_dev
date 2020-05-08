@@ -1,0 +1,52 @@
+    #
+    # Definition of the image header as a Numpy structured array of 3-element
+    # records <keyword> <dtype> <value>, each element being zero-terminated
+    # ASCII byte strings. Such arrays are seamlessly saved in HDF5 files as
+    # the HDF5 native tables. 
+    #
+    # def init_header_hdf5(self):
+    #     '''
+    #     In HDF5 file the metadata header contains only ASCII strings
+    #     <keyword> <dtype> <value>.
+    #     '''
+    #     hdf5_header = np.array([
+    #         # Information
+    #       ('object',     'str', 'NONE'),
+    #       ('telescope',  'str', 'NONE'),
+    #       ('instrument', 'str', 'NONE'),
+    #       ('observer',   'str', 'NONE'),
+    #       ('dateobs',    'str', 'NONE'),
+            
+    #         # RA information   
+    #         ('ra',    'np.float64', '0.'),
+    #         ('dx',    'np.float64', '-1.'),
+    #         ('nx',    'np.int64',   '1'),
+    #         ('nxref', 'np.float64', '1.'),
+
+    #         # Dec information
+    #         ('dec',   'np.float64', '0.'),
+    #         ('dy',    'np.float64', '1.'),
+    #         ('ny',    'np.int64',   '1'),
+    #         ('nyref', 'np.float64', '1.'),
+
+    #         # Third Axis Information
+    #         ('freq',  'np.float64', '229.345e9'),
+    #         ('dfreq', 'np.float64', '4e9'),
+    #         ('nf',    'np.int64',   '1'),
+    #         ('nfref', 'np.float64', '1.'),
+
+    #         # Stokes Information
+    #         ('s',     'np.int64', '1'),
+    #         ('ds',    'np.int64', '1'),
+    #         ('ns',    'np.int64', '1'),
+    #         ('nsref', 'np.int64', '1'),
+
+    #         # Beam information
+    #         ('bmaj', 'np.float64', '0.'),
+    #         ('bin',  'np.float64', '0.'),
+    #         ('bpa',  'np.float64', '0.'),
+    #     ], dtype=dtype_hdf5_header)
+
+    #     return hdf5_header
+    
+ 
