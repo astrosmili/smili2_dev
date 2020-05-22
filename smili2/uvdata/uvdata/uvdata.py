@@ -35,8 +35,14 @@ class UVData(object):
     # polarization
     poltype = "circ"
 
-    def set_array(self, array):
+    # internal flags
+    flags = dict(
+        recalc_antable=False,
+        recalc_uvw_sec=False,
+        recalc_uvw=False,
+    )
 
+    def set_array(self, array):
         from ...array import Array
         if not isinstance(array, Array):
             raise(ValueError())
@@ -70,7 +76,7 @@ class UVData(object):
         Returns:
             No returns.
         '''
-        from numpy import abs, diff, zeros, isscalar
+        from numpy import abs, diff, zeros, isscalar, ones
         from xarray import concat, DataArray
         from itertools import combinations
 
@@ -127,7 +133,7 @@ class UVData(object):
                     wsec=("data", zeros(Nutc, dtype="float64")),
                     antid1=("data", [antid1 for i in range(Nutc)]),
                     antid2=("data", [antid2 for i in range(Nutc)]),
-                    flag=(["pol", "if", "ch", "data"], zeros(
+                    flag=(["pol", "if", "ch", "data"], ones(
                         [Npol, Nif, Nch, Nutc], dtype="int32")),
                     sigma=(["pol", "if", "ch", "data"], zeros(
                         [Npol, Nif, Nch, Nutc], dtype="float64")),
@@ -137,6 +143,10 @@ class UVData(object):
             )
             vis_list.append(vis_tmp)
         self.vis = concat(vis_list, dim="data")
+
+        self.flags["recalc_antable"] = True
+        self.flags["recalc_uvw_sec"] = True
+        self.flags["recalc_uvw"] = True
 
     def init_antable(self, overwrite=False):
         from numpy import unique
@@ -156,12 +166,13 @@ class UVData(object):
             raise ValueError(
                 "Please set an Array object with UVData.set_source()")
 
-        if (overwrite is False) and (self.antable is not None):
+        if (overwrite is False) and (self.antable is not None) and (self.flags["recalc_antable"] is False):
             warn("Since antable already exists, it won't be recalculated. Use overwrite=True for recalculation.")
             return
 
         self.antable = ANTable.make(
             utc=utc, array=self.array, source=self.source)
+        self.flags["recalc_antable"] = False
 
     def copy(self):
         """
@@ -192,6 +203,7 @@ class UVData(object):
         if self.gaintable is not None:
             outdata.gaintable = self.gaintable.copy()
 
+        outdata.flags = deepcopy(self.flags)
         outdata.poltype = deepcopy(self.poltype)
 
         return outdata
@@ -249,7 +261,28 @@ class UVData(object):
             vis_list.append(vis_tmp)
         self.vis = concat(vis_list, dim="data")
 
+    def calc_uvw(self, recalc_uvw_sec=False, overwrite_antable=False):
+        # recompute uvw_sec if needed
+        if recalc_uvw_sec or self.flags["recalc_uvw_sec"]:
+            self.calc_uvw_sec(overwrite_antable=overwrite_antable)
+
+        # scale frequency
+        self.vis.coords["u"] = self.vis["usec"] * self.vis["freq"]
+        self.vis.coords["v"] = self.vis["vsec"] * self.vis["freq"]
+        self.vis.coords["w"] = self.vis["wsec"] * self.vis["freq"]
+
+        # modify flags
+        self.flags["recalc_uvw"] = False
+
     def calc_uvw_sec(self, overwrite_antable=False):
+        """
+        Re-calculate uvw coordinates
+
+        Args:
+            overwrite_antable (bool, defalt=False):
+                if True, it will re-calculate frequency independent antenna
+                information.
+        """
         from ...util.units import conv, Unit
 
         # Source and Telescope Locations
@@ -282,6 +315,10 @@ class UVData(object):
         self.vis.coords["vsec"] = ("data", vsec)
         self.vis.coords["wsec"] = ("data", wsec)
 
+        # modify flags
+        self.flags["recalc_uvw_sec"] = False
+        self.flags["recalc_uvw"] = True
+
     def calc_gst(self):
         '''
         re-calc GST visibilities.
@@ -298,6 +335,62 @@ class UVData(object):
         gst_unq = utc_unq.sidereal_time(
             "apparent", "greenwich", "IAU2006A").hour
         self.vis.coords["gst"] = ("data", gst_unq[mjd_unq_invidx])
+
+    def apply_flag(self, keep_flagged=False, inplace=False):
+        if inplace:
+            outdata = self
+        else:
+            outdata = self.copy()
+
+        idx = outdata.vis.coords["flag"].min(axis=0).min(axis=0).min(axis=0)
+        if keep_flagged:
+            idx = idx <= 0
+        else:
+            idx = outdata.vis.coords["flag"].min(
+                axis=0).min(axis=0).min(axis=0) >= 0
+
+        outdata.vis = outdata.vis[:, :, :, idx]
+        if not inplace:
+            return outdata
+
+    def apply_ellimit(self, apply_flag=True, overwrite_antable=False, inplace=True):
+        if inplace:
+            outdata = self
+        else:
+            outdata = self.copy()
+
+        # Source and Telescope Locations
+        iscolumn = True
+        mandatory_columns = "el1,el2".split(",")
+        for column in mandatory_columns:
+            iscolumn &= column in outdata.vis.coords
+        if not iscolumn:
+            outdata.copy_from_antab_to_vis(
+                columns="el".split(","),
+                overwrite_antable=overwrite_antable)
+
+        # antenna ids
+        antids = outdata.array.table.index.to_list()
+
+        # Antenna-based information
+        for antid in antids:
+            elmin, elmax = outdata.array.table.loc[antid, ["elmin", "elmax"]]
+            # antid1
+            idx = self.vis.coords["el1"] < elmin
+            idx |= self.vis.coords["el1"] > elmax
+            idx &= self.vis.coords["antid1"] == antid
+            outdata.vis.flag[:, :, :, idx] = -1
+            # antid2
+            idx = self.vis.coords["el2"] < elmin
+            idx |= self.vis.coords["el2"] > elmax
+            idx &= self.vis.coords["antid2"] == antid
+            outdata.vis.flag[:, :, :, idx] = -1
+
+        if apply_flag:
+            outdata.apply_flag(inplace=True)
+
+        if not inplace:
+            return outdata
 
 
 def _compute_uvw_sec(gst, ra, dec, x1, y1, z1, x2, y2, z2):
