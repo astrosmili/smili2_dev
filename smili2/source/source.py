@@ -8,9 +8,6 @@ __author__ = "Smili Developer Team"
 # ------------------------------------------------------------------------------
 # Modules
 # ------------------------------------------------------------------------------
-# astropy
-from astropy.coordinates import SkyCoord
-from copy import deepcopy
 
 
 # ------------------------------------------------------------------------------
@@ -21,7 +18,7 @@ class Source(object):
 
     Attributes:
         name (str): the source name
-        skycoord (astropy.coord.SkyCoord): the sky coordinate 
+        skycoord (astropy.coord.SkyCoord): the sky coordinate
     '''
     # name
     name = "mysource"
@@ -35,24 +32,26 @@ class Source(object):
                 coordinate. If it is not specified, the coordinate will
                 be searched at the CDS.
         '''
+        from astropy.coordinates import SkyCoord
+
         self.name = name
-        
+
         if skycoord is None:
             self.skycoord = SkyCoord.from_name("M87")
         elif isinstance(skycoord, SkyCoord):
             self.skycoord = skycoord.copy()
         else:
-            raise ValueError("skycoord must be an astropy.coord.SkyCoord object")
+            raise ValueError(
+                "skycoord must be an astropy.coord.SkyCoord object")
 
     def copy(self):
         from copy import deepcopy
         return Source(name=deepcopy(self.name), skycoord=self.skycoord.copy())
-    
+
     def __repr__(self):
-        output = "%s %s"%(self.name, self.skycoord.to_string("hmsdms"))
+        output = "%s %s" % (self.name, self.skycoord.to_string("hmsdms"))
         return output
-    
+
     def _repr_html_(self):
-        output = "%s %s"%(self.name, self.skycoord.to_string("hmsdms"))
+        output = "%s %s" % (self.name, self.skycoord.to_string("hmsdms"))
         return output
-    

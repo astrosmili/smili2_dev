@@ -53,7 +53,7 @@ class Array(object):
             name (str, default="myarray"):
                 The name of the Array.
             args_load_txt (dict, default={}):
-                If the filename is specified, this method will use 
+                If the filename is specified, this method will use
                 ehtim.array.load_txt function. This dictionary is for optinal
                 argments of this function.
 
@@ -70,7 +70,8 @@ class Array(object):
         elif isinstance(arrayobj, ehtim.array.Array):
             array = deepcopy(arrayobj)
         else:
-            raise ValueError("Invalid data type of arrayobj: %s" % (type(arrayobj)))
+            raise ValueError("Invalid data type of arrayobj: %s" %
+                             (type(arrayobj)))
 
         tarr = array.tarr.copy()
         Nant = tarr.size
@@ -120,15 +121,24 @@ class ArrayTable(DataTable):
     """
     header = Header([
         dict(name="antname", dtype="U32", unit="", comment="Antenna Name"),
-        dict(name="x", dtype="float64", unit="m", comment="Geocenric Coordinate x"),
-        dict(name="y", dtype="float64", unit="m", comment="Geocenric Coordinate y"),
-        dict(name="z", dtype="float64", unit="m", comment="Geocenric Coordinate z"),
-        dict(name="sefd1", dtype="float64", unit="Jy", comment="Zenith SEFD at Pol 1"),
-        dict(name="sefd2", dtype="float64", unit="Jy", comment="Zenith SEFD at Pol 2"),
-        dict(name="tau1", dtype="float64", unit="", comment="Zenith Opacity at Pol 1"),
-        dict(name="tau2", dtype="float64", unit="", comment="Zenith Opactiy at Pol 2"),
-        dict(name="elmin", dtype="float64", unit="deg", comment="Minimum Elevation"),
-        dict(name="elmax", dtype="float64", unit="deg", comment="Maximum Elevation"),
+        dict(name="x", dtype="float64", unit="m",
+             comment="Geocenric Coordinate x"),
+        dict(name="y", dtype="float64", unit="m",
+             comment="Geocenric Coordinate y"),
+        dict(name="z", dtype="float64", unit="m",
+             comment="Geocenric Coordinate z"),
+        dict(name="sefd1", dtype="float64", unit="Jy",
+             comment="Zenith SEFD at Pol 1"),
+        dict(name="sefd2", dtype="float64", unit="Jy",
+             comment="Zenith SEFD at Pol 2"),
+        dict(name="tau1", dtype="float64", unit="",
+             comment="Zenith Opacity at Pol 1"),
+        dict(name="tau2", dtype="float64", unit="",
+             comment="Zenith Opactiy at Pol 2"),
+        dict(name="elmin", dtype="float64",
+             unit="deg", comment="Minimum Elevation"),
+        dict(name="elmax", dtype="float64",
+             unit="deg", comment="Maximum Elevation"),
         dict(name="fr_pa_coeff", dtype="float64", unit="",
              comment="Coeffcient for the Parallactic Angle to compute the Field Roation Angle"),
         dict(name="fr_el_coeff", dtype="float64", unit="",
