@@ -17,8 +17,30 @@ from ..util.table import DataTable, DataSeries, Header
 # Classes
 # ------------------------------------------------------------------------------
 class Array(object):
+    """
+    Class for the interferometric array information.
+
+    Attributes:
+        name (str): The name of the array.
+        table (ArrayTable): The list of antennas in the array.
+    """
     name = "SMILI"
     table = None
+
+    def copy(self):
+        """
+        Replicate the array information to the new Array object.
+
+        Returns:
+            Array: copied the array information.
+        """
+        from copy import deepcopy
+
+        outdata = Array()
+        outdata.name = deepcopy(self.name)
+        outdata.table = self.table.copy()
+
+        return outdata
 
     @classmethod
     def load_ehtim_array(cls, arrayobj, name="SMILI", args_load_txt={}):
@@ -31,7 +53,7 @@ class Array(object):
             name (str, default="myarray"):
                 The name of the Array.
             args_load_txt (dict, default={}):
-                If the filename is specified, this method will use
+                If the filename is specified, this method will use 
                 ehtim.array.load_txt function. This dictionary is for optinal
                 argments of this function.
 
@@ -90,6 +112,12 @@ class Array(object):
 
 
 class ArrayTable(DataTable):
+    """
+    This table is storing the antenna summary information.
+
+    Attributes:
+        header (Header): the header of this table
+    """
     header = Header([
         dict(name="antname", dtype="U32", unit="", comment="Antenna Name"),
         dict(name="x", dtype="float64", unit="m", comment="Geocenric Coordinate x"),

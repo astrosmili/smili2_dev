@@ -6,4 +6,4 @@ The module includes following submodules.
 '''
 __author__ = "Smili Developper Team"
 
-from .array import Array
+from .array import Array, ArrayTable
