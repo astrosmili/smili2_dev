@@ -9,7 +9,7 @@ __author__ = "Smili Developer Team"
 # Modules
 # -----------------------------------------------------------------------------
 # internal
-from ..util.table import DataTable, DataSeries, Header
+from ..util.table import DataTable, DataSeries, TableHeader
 
 
 # -----------------------------------------------------------------------------
@@ -191,7 +191,7 @@ class Freq(object):
 
 
 class FreqTable(DataTable):
-    header = Header([
+    header = TableHeader([
         dict(name="if_freq", dtype="float64", unit="Hz",
              comment="Central frequency of the 1st channel of the IF"),
         dict(name="ch_bw", dtype="float64", unit="Hz",

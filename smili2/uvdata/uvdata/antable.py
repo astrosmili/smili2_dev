@@ -9,14 +9,14 @@ __author__ = "Smili Developer Team"
 # Modules
 # ------------------------------------------------------------------------------
 # internal
-from ...util.table import DataTable, DataSeries, Header
+from ...util.table import DataTable, DataSeries, TableHeader
 
 
 # ------------------------------------------------------------------------------
 # functions
 # ------------------------------------------------------------------------------
 class ANTable(DataTable):
-    header = Header([
+    header = TableHeader([
         dict(name="antname", dtype="U32", unit="", comment="Antenna Name"),
         dict(name="antid", dtype="int32", unit="", comment="Antenna ID"),
         dict(name="mjd", dtype="float64", unit="day",

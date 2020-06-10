@@ -10,7 +10,7 @@ __author__ = "Smili Developer Team"
 # Modules
 # ------------------------------------------------------------------------------
 # internal
-from ..util.table import DataTable, DataSeries, Header
+from ..util.table import DataTable, DataSeries, TableHeader
 
 
 # ------------------------------------------------------------------------------
@@ -117,9 +117,9 @@ class ArrayTable(DataTable):
     This table is storing the antenna summary information.
 
     Attributes:
-        header (Header): the header of this table
+        header (TableHeader): the header of this table
     """
-    header = Header([
+    header = TableHeader([
         dict(name="antname", dtype="U32", unit="", comment="Antenna Name"),
         dict(name="x", dtype="float64", unit="m",
              comment="Geocenric Coordinate x"),
