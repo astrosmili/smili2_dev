@@ -19,7 +19,7 @@ def conv(from_unit, to_unit):
     Returns:
         float-like: the conversion factor
     """
-    factor = (1*from_unit) / (1*to_unit)
+    factor = (1*Unit(from_unit)) / (1*Unit(to_unit))
     return factor.to_value("")
 
 
