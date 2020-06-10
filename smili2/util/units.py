@@ -1,15 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-This module provides a quick shortcut to the major units
+This module provides a quick shortcut to the major units.
 '''
 __author__ = "Smili Developer Team"
 
 from astropy.units import Unit
 
+
 def conv(from_unit, to_unit):
+    """
+    Compute the conversion factor between two units.
+
+    Args:
+        from_unit (astropy.units.Unit): The unit to be converted from.
+        to_unit (astropy.units.Unit): The unit to be converted to.
+
+    Returns:
+        float-like: the conversion factor
+    """
     factor = (1*from_unit) / (1*to_unit)
     return factor.to_value("")
+
 
 # Dimension Less
 DIMLESS = Unit("")
