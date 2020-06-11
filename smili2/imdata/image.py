@@ -23,12 +23,13 @@ class Image(object):
     angunit = "uas"
 
     def __init__(self,
-                 dx=2, dy=None,
                  nx=128, ny=None,
+                 dx=2, dy=None,
                  nxref=None, nyref=None,
                  angunit="uas",
                  mjd=[0.],
                  freq=[230e9],
+                 ns=1,
                  source=None,
                  srccoord=None,
                  instrument=None,
@@ -56,7 +57,7 @@ class Image(object):
             meta (util.metadata.MetaData): Meta data
             angunit (str): Angular Unit
         """
-        from numpy import float64, int32, abs
+        from numpy import float64, int32, abs, isscalar
         from ..util.units import conv
 
         # Parse arguments
@@ -84,6 +85,21 @@ class Image(object):
             args["nyref"] = args["ny"]/2 - 0.5
         else:
             args["nyref"] = float64(nyref)
+
+        # ns
+        args["ns"] = int32(ns)
+
+        # nt
+        if isscalar(mjd):
+            args["nt"] = 1
+        else:
+            args["nt"] = len(mjd)
+
+        # nf
+        if isscalar(freq):
+            args["nf"] = 1
+        else:
+            args["nf"] = len(freq)
 
         #  angunit
         self.angunit = angunit
@@ -186,11 +202,11 @@ class Image(object):
         '''
         Add the stokes information to the image data array.
         '''
-        nf = self.meta["nf"].val
+        ns = self.meta["ns"].val
 
-        if nf == 1:
+        if ns == 1:
             self.data["stokes"] = ["I"]
-        elif nf == 4:
+        elif ns == 4:
             self.data["stokes"] = ["I", "Q", "U", "V"]
         else:
             raise ValueError(
@@ -302,6 +318,20 @@ class Image(object):
         self.meta["bmaj"].val = majsize * factor * scale
         self.meta["bmin"].val = minsize * factor * scale
         self.meta["bpa"].val = deg2rad(pa)
+
+    def auto_angunit(self):
+        from numpy import amax
+        from smili2.util.units import Unit, DEG
+
+        angunits = ["deg", "arcmin", "arcsec", "mas", "uas"]
+        xmax = amax(self.get_extent(angunit="deg"))*DEG
+
+        for angunit in angunits:
+            self.angunit = angunit
+            if xmax < 0.1*Unit(angunit):
+                continue
+            else:
+                break
 
     def get_xygrid(self, twodim=False, angunit=None):
         '''
@@ -425,7 +455,6 @@ class Image(object):
         return converted.data.copy()
 
     # plotting function
-
     def imshow(self,
                scale="linear",
                dyrange=100,
@@ -644,3 +673,91 @@ class Image(object):
 
         # plot
         plot([xmax, xmin], [y, y], color=color, lw=lw, **plotargs)
+
+    @classmethod
+    def load_fits_ehtim(cls, infits):
+        """
+        Load a FITS Image in ehtim's format into an imdata.Image instance.
+
+        Args:
+            infits (str or astropy.io.fits.HDUList):
+                input FITS filename or HDUList instance
+
+        Returns:
+            imdata.Image: loaded image]
+        """
+        import astropy.io.fits as pf
+        from numpy import abs, deg2rad
+        from astropy.coordinates import SkyCoord
+        from ..util.units import DEG
+
+        isfile = False
+        if isinstance(infits, str):
+            hdulist = pf.open(infits)
+            isfile = True
+        elif isinstance(infits, pf.HDUList):
+            hdulist = infits.copy()
+
+        # number of the Stokes Parameter
+        ns = len(hdulist)
+
+        # ra axis
+        xdeg = hdulist[0].header["OBSRA"]
+        nx = hdulist[0].header["NAXIS1"]
+        dx = abs(deg2rad(hdulist[0].header["CDELT1"]))
+        nxref = hdulist[0].header["CRPIX1"]-1
+
+        # dec axis
+        ydeg = hdulist[0].header["OBSDEC"]
+        ny = hdulist[0].header["NAXIS2"]
+        dy = abs(deg2rad(hdulist[0].header["CDELT2"]))
+        nyref = hdulist[0].header["CRPIX2"]-1
+
+        # stokes axis
+        ns = len(hdulist)
+
+        # time axis
+        mjd = [hdulist[0].header["MJD"]]
+
+        # frequency
+        freq = [hdulist[0].header["FREQ"]]
+
+        # source
+        source = hdulist[0].header["OBJECT"]
+        srccoord = SkyCoord(ra=xdeg*DEG, dec=ydeg*DEG)
+
+        # telescope
+        instrument = hdulist[0].header["TELESCOP"]
+
+        outimage = cls(
+            nx=nx, ny=ny,
+            dx=dx, dy=dy, angunit="rad",
+            nxref=nxref, nyref=nyref,
+            mjd=mjd,
+            freq=freq,
+            ns=ns,
+            source=source,
+            srccoord=srccoord,
+            instrument=instrument
+        )
+
+        for i in range(ns):
+            outimage.data[0, 0, i] = hdulist[i].data.copy()
+
+        if isfile:
+            hdulist.close()
+
+        return outimage
+
+    def load_fits_smili(cls, infits):
+        pass
+
+    def load_fits_aips(cls, infits):
+        pass
+
+    def load_fits_casa(cls, infits):
+        pass
+
+
+# shortcut to I/O functions
+load_fits_ehtim = Image.load_fits_ehtim
