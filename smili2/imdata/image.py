@@ -321,7 +321,7 @@ class Image(object):
 
     def auto_angunit(self):
         from numpy import amax
-        from smili2.util.units import Unit, DEG
+        from ..util.units import Unit, DEG
 
         angunits = ["deg", "arcmin", "arcsec", "mas", "uas"]
         xmax = amax(self.get_extent(angunit="deg"))*DEG
@@ -392,6 +392,23 @@ class Image(object):
 
     # copy extent to imextent
     get_imextent = get_extent
+
+    def get_source(self):
+        """
+        [summary]
+
+        Returns:
+            [type]: [description]
+        """
+        from astropy.coordinates import SkyCoord
+        from ..util.units import RAD
+        from ..source import Source
+
+        name = self.meta["source"].val
+        x = self.meta["x"].val * RAD
+        y = self.meta["y"].val * RAD
+        skycoord = SkyCoord(ra=x, dec=y)
+        return Source(name=name, skycoord=skycoord)
 
     def get_beam(self, angunit=None):
         '''
@@ -674,6 +691,23 @@ class Image(object):
         # plot
         plot([xmax, xmin], [y, y], color=color, lw=lw, **plotargs)
 
+    # Simulation
+    def observe(self, array, freq, utc, dutc=None, add_thermal_noise=True):
+        from ..uvdata import UVData
+
+        uvd = UVData()
+        uvd.set_array(array)
+        uvd.set_source(self.get_source())
+        uvd.set_freq(freq)
+        uvd.init_vis(utc=utc, dutc=dutc)
+        uvd.calc_uvw()
+        uvd.apply_ellimit()
+        uvd.eval(self, inplace=True)
+        uvd.calc_sigma()
+        if add_thermal_noise:
+            uvd.add_thermal_noise(inplace=True)
+        return uvd
+
     @classmethod
     def load_fits_ehtim(cls, infits):
         """
@@ -747,14 +781,20 @@ class Image(object):
         if isfile:
             hdulist.close()
 
+        # update angunit
+        outimage.auto_angunit()
+
         return outimage
 
+    @classmethod
     def load_fits_smili(cls, infits):
         pass
 
+    @classmethod
     def load_fits_aips(cls, infits):
         pass
 
+    @classmethod
     def load_fits_casa(cls, infits):
         pass
 

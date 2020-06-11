@@ -26,14 +26,14 @@ class UVData(object):
     # complex visibilities
     vis = None
 
-    # pol/frequency independent antenna-based information
+    # stokes/frequency independent antenna-based information
     antable = None
 
-    # pol/frequency dependent antenna-based information
+    # stokes/frequency dependent antenna-based information
     gaintable = None
 
-    # polarization
-    poltype = "circ"
+    # stokesarization
+    stokestype = "circ"
 
     # internal flags
     flags = dict(
@@ -95,15 +95,15 @@ class UVData(object):
         # get the number of data
         Nutc = len(utc)
         Nif, Nch = self.freq.get_shape()
-        Npol = 4
+        Nstokes = 4
 
-        # polarizations
-        if self.poltype == "circ":
-            pols = ["RR", "LL", "RL", "LR"]
-        elif self.poltype == "linear":
-            pols = ["XX", "YY", "XY", "YX"]
+        # stokesarizations
+        if self.stokestype == "circ":
+            stokes = ["RR", "LL", "RL", "LR"]
+        elif self.stokestype == "linear":
+            stokes = ["XX", "YY", "XY", "YX"]
         else:
-            pols = ["I", "Q", "U", "V"]
+            stokes = ["I", "Q", "U", "V"]
 
         # get mjd
         mjd = utc.mjd
@@ -123,8 +123,8 @@ class UVData(object):
         vis_list = []
         for antid1, antid2 in combinations(antids, 2):
             vis_tmp = DataArray(
-                zeros([Npol, Nif, Nch, Nutc], dtype="complex128"),
-                dims=["pol", "if", "ch", "data"],
+                zeros([Nstokes, Nif, Nch, Nutc], dtype="complex128"),
+                dims=["stokes", "if", "ch", "data"],
                 coords=dict(
                     mjd=("data", mjd),
                     dmjd=("data", dmjd),
@@ -133,12 +133,13 @@ class UVData(object):
                     wsec=("data", zeros(Nutc, dtype="float64")),
                     antid1=("data", [antid1 for i in range(Nutc)]),
                     antid2=("data", [antid2 for i in range(Nutc)]),
-                    flag=(["pol", "if", "ch", "data"], ones(
-                        [Npol, Nif, Nch, Nutc], dtype="int32")),
-                    sigma=(["pol", "if", "ch", "data"], zeros(
-                        [Npol, Nif, Nch, Nutc], dtype="float64")),
-                    pol=(["pol"], pols),
-                    freq=(["if", "ch"], self.freq.get_freqarr())
+                    flag=(["stokes", "if", "ch", "data"], ones(
+                        [Nstokes, Nif, Nch, Nutc], dtype="int32")),
+                    sigma=(["stokes", "if", "ch", "data"], zeros(
+                        [Nstokes, Nif, Nch, Nutc], dtype="float64")),
+                    stokes=(["stokes"], stokes),
+                    freq=(["if", "ch"], self.freq.get_freqarr()),
+                    chbw=(["if"], self.freq.table["ch_bw"].values)
                 )
             )
             vis_list.append(vis_tmp)
@@ -204,7 +205,7 @@ class UVData(object):
             outdata.gaintable = self.gaintable.copy()
 
         outdata.flags = deepcopy(self.flags)
-        outdata.poltype = deepcopy(self.poltype)
+        outdata.stokestype = deepcopy(self.stokestype)
 
         return outdata
 
@@ -267,9 +268,9 @@ class UVData(object):
             self.calc_uvw_sec(overwrite_antable=overwrite_antable)
 
         # scale frequency
-        self.vis.coords["u"] = self.vis["usec"] * self.vis["freq"]
-        self.vis.coords["v"] = self.vis["vsec"] * self.vis["freq"]
-        self.vis.coords["w"] = self.vis["wsec"] * self.vis["freq"]
+        self.vis.coords["u"] = self.vis["freq"] * self.vis["usec"]
+        self.vis.coords["v"] = self.vis["freq"] * self.vis["vsec"]
+        self.vis.coords["w"] = self.vis["freq"] * self.vis["wsec"]
 
         # modify flags
         self.flags["recalc_uvw"] = False
@@ -336,6 +337,56 @@ class UVData(object):
             "apparent", "greenwich", "IAU2006A").hour
         self.vis.coords["gst"] = ("data", gst_unq[mjd_unq_invidx])
 
+    def calc_sigma(self, inplace=True):
+        from numpy import sqrt
+
+        # output
+        if inplace:
+            outuvd = self
+        else:
+            outuvd = self.copy()
+
+        # Source and Telescope Locations
+        iscolumn = True
+        mandatory_columns = "sefd1,sefd2".split(",")
+        for column in mandatory_columns:
+            iscolumn &= column in outuvd.vis.coords
+        if not iscolumn:
+            outuvd.copy_from_antab_to_vis(
+                columns=mandatory_columns, overwrite_antable=True)
+
+        dt = outuvd.vis.dmjd * 86400
+        dnu = outuvd.vis.chbw
+        factor = 1/sqrt(2*dnu*dt)
+        outuvd.vis.sigma[0] = sqrt(outuvd.vis.sefd11 * outuvd.vis.sefd12)
+        outuvd.vis.sigma[1] = sqrt(outuvd.vis.sefd21 * outuvd.vis.sefd22)
+        outuvd.vis.sigma[2] = sqrt(outuvd.vis.sefd11 * outuvd.vis.sefd22)
+        outuvd.vis.sigma[3] = sqrt(outuvd.vis.sefd21 * outuvd.vis.sefd12)
+        outuvd.vis["sigma"] = outuvd.vis.sigma * factor
+
+        # return
+        if not inplace:
+            return outuvd
+
+    def add_thermal_noise(self, inplace=True):
+        from numpy.random import normal
+
+        # output
+        if inplace:
+            outuvd = self
+        else:
+            outuvd = self.copy()
+
+        # thermal noise
+        thnoise = normal(size=outuvd.vis.sigma.shape)+1j * \
+            normal(size=outuvd.vis.sigma.shape)
+        thnoise = thnoise * outuvd.vis.sigma
+        outuvd.vis.data += thnoise.data
+
+        # return
+        if not inplace:
+            return outuvd
+
     def apply_flag(self, keep_flagged=False, inplace=False):
         if inplace:
             outdata = self
@@ -391,6 +442,111 @@ class UVData(object):
 
         if not inplace:
             return outdata
+
+    def eval(self, input, inplace=False):
+        """
+        [summary]
+
+        Args:
+            input ([type]): [description]
+            inplace (bool, optional): [description]. Defaults to False.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            [type]: [description]
+        """
+        from ...imdata import Image
+
+        out = None
+        if isinstance(input, Image):
+            out = self.eval_image(image=input, inplace=inplace)
+        else:
+            raise ValueError("Invalid input data type")
+
+        if not inplace:
+            return out
+
+    def eval_image(self, image, inplace=False):
+        """
+        [summary]
+
+        Args:
+            image ([type]): [description]
+            inplace (bool, optional): [description]. Defaults to False.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            [type]: [description]
+        """
+        from smili2.ft.ft_image import NFFT_Image
+        from numpy import zeros
+
+        # get the image dimension
+        ni_t, ni_f, ni_s, ny, nx = image.data.shape
+        nim = ni_t*ni_f
+
+        # get the data dimension
+        nd_s, nif, nch, ndata = self.vis.shape
+
+        # the number of images
+        if nim != 1:
+            raise ValueError(
+                "Currently this function works for the two dimensional image")
+
+        # get uv coordinates
+        u = self.vis.u.data.flatten()
+        v = self.vis.v.data.flatten()
+        ntotal = len(u)
+
+        # initialize NFFT function
+        nfft = NFFT_Image(
+            u=u, v=v,
+            dx=-image.meta["dx"].val,
+            dy=image.meta["dy"].val,
+            nx=nx,
+            ny=ny
+        )
+
+        # generate model visibilities in IQUV
+        vis_mod = zeros([nd_s, ntotal], dtype="complex128")
+        for ipol in range(ni_s):
+            vis_mod[ipol] = nfft.nfft2d_forward(image.data[0, 0, ipol].data)
+
+        # output
+        if inplace:
+            outuvd = self
+        else:
+            outuvd = self.copy()
+
+        # change polarization
+        if outuvd.stokestype == "stokes":
+            outuvd.vis.data = vis_mod.reshape([nd_s, nif, nch, ndata])
+        elif outuvd.stokestype == "circ":
+            rrvis = vis_mod[0] + vis_mod[3]  # RR = I+V
+            llvis = vis_mod[0] - vis_mod[3]  # LL = I-V
+            rlvis = vis_mod[1] + 1j * vis_mod[2]  # RL = Q+iU
+            lrvis = vis_mod[1] - 1j * vis_mod[2]  # LR = Q-iU
+            outuvd.vis.data[0] = rrvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[1] = llvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[2] = rlvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[3] = lrvis.reshape([nif, nch, ndata])
+        elif outuvd.stokestype == "linear":
+            xxvis = vis_mod[0] + vis_mod[1]  # XX = I+Q
+            yyvis = vis_mod[0] - vis_mod[1]  # YY = I-Q
+            xyvis = vis_mod[2] + 1j * vis_mod[3]  # XY = U+iV
+            yxvis = vis_mod[2] - 1j * vis_mod[3]  # YX = U-iV
+            outuvd.vis.data[0] = xxvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[1] = yyvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[2] = xyvis.reshape([nif, nch, ndata])
+            outuvd.vis.data[3] = yxvis.reshape([nif, nch, ndata])
+
+        # return
+        if not inplace:
+            return outuvd
 
 
 def _compute_uvw_sec(gst, ra, dec, x1, y1, z1, x2, y2, z2):
