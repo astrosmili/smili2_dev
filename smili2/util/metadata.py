@@ -43,6 +43,15 @@ class MetaRec(object):
     comment = None
 
     def __init__(self, val=None, unit=None, dtype=None, comment=None):
+        """
+        A class to handle scalar-type meta data information.
+
+        Args:
+            dtype (str): data type interpretable with numpy.dtype
+            val (depending of dtype): data value
+            unit (str): unit of the value
+            comment (str): descriptions about this meta data information
+        """
         self.dtype = dtype
         self.val = val
         self.unit = unit
