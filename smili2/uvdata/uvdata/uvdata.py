@@ -25,6 +25,8 @@ class UVData(object):
 
     # complex visibilities
     vis = None
+    bs = None
+    ca = None
 
     # stokes/frequency independent antenna-based information
     antable = None
@@ -32,7 +34,7 @@ class UVData(object):
     # stokes/frequency dependent antenna-based information
     gaintable = None
 
-    # stokesarization
+    # stokes
     stokestype = "circ"
 
     # internal flags
@@ -482,7 +484,7 @@ class UVData(object):
         Returns:
             [type]: [description]
         """
-        from smili2.ft.ft_image import NFFT_Image
+        from ...ft.ft_image import NFFT_Image
         from numpy import zeros
 
         # get the image dimension
@@ -515,6 +517,10 @@ class UVData(object):
         vis_mod = zeros([nd_s, ntotal], dtype="complex128")
         for ipol in range(ni_s):
             vis_mod[ipol] = nfft.nfft2d_forward(image.data[0, 0, ipol].data)
+
+        # apply pulse function
+        pulsekernel = image.get_pulsefunc()(u, v)
+        vis_mod[:] *= pulsekernel
 
         # output
         if inplace:

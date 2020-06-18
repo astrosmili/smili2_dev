@@ -229,6 +229,15 @@ class Image(object):
             # compute coordinates
             self.data[axis] = sign*dx*(arange(nx)-nxref)
 
+    def copy(self):
+        from copy import deepcopy
+
+        outimage = Image()
+        outimage.meta = deepcopy(self.meta)
+        outimage.data = deepcopy(self.data)
+        outimage.angunit = deepcopy(self.angunit)
+        return outimage
+
     def set_source(self, source="M87", srccoord=None):
         '''
         Set the source name and the source coordinate to the metadata.
@@ -324,7 +333,7 @@ class Image(object):
         from ..util.units import Unit, DEG
 
         angunits = ["deg", "arcmin", "arcsec", "mas", "uas"]
-        xmax = amax(self.get_extent(angunit="deg"))*DEG
+        xmax = amax(self.get_imextent(angunit="deg"))*DEG
 
         for angunit in angunits:
             self.angunit = angunit
@@ -358,7 +367,7 @@ class Image(object):
             x, y = meshgrid(x, y)
         return x, y
 
-    def get_extent(self, angunit=None):
+    def get_imextent(self, angunit=None):
         '''
         Get the field of view of the image for the pyplot.imshow function.
 
@@ -390,8 +399,117 @@ class Image(object):
 
         return asarray([xmax, xmin, ymin, ymax]) * factor
 
-    # copy extent to imextent
-    get_imextent = get_extent
+    def get_uvgrid(self, twodim=False):
+        """
+        Get the uv coordinates of the image on the Fourier domain
+
+        Args:
+            twodim(boolean): It True, the 2D grids will be returned. Otherwise, the 1D arrays will be returned
+
+        Returns:
+            u, v: u, v coordinates.
+        """
+        from numpy import meshgrid
+        from numpy.fft import fftfreq, ifftshift
+
+        # get the shape of array
+        nt, nf, ns, ny, nx = self.data.shape
+        del nt, nf, ns
+
+        # pixel size
+        dxrad = self.meta["dx"].val
+        dyrad = self.meta["dy"].val
+
+        # create uv grids
+        ug = ifftshift(fftfreq(nx, d=-dxrad))
+        vg = ifftshift(fftfreq(ny, d=dyrad))
+
+        if twodim:
+            return meshgrid(ug, vg)
+        else:
+            return ug, vg
+
+    def get_uvextent(self):
+        """
+        Get the field of view of the image on the Fourier transform
+        for the pyplot.imshow function. Here we assume that the Fourier image
+        is created by the get_visarr method.
+
+        Returns:
+          [umax, umin, vmin, vmax]: extent of the Fourier transformed image.
+        """
+        from numpy import asarray
+        ug, vg = self.get_uvgrid()
+        du_half = (ug[1] - ug[0])/2
+        dv_half = (vg[1] - vg[0])/2
+        return asarray([ug[0]-du_half, ug[-1]+du_half, vg[0]-dv_half, vg[-1]+dv_half])
+
+    def get_vis(self, idx=(0, 0, 0), apply_pulsefunc=True):
+        """
+        Get an array of visibilities computed from the image.
+
+        Args:
+            idx (tuple, optional):
+                An index, or a list of indice of the image.
+                The index should be in the form of (time, freq, stokes).
+                Defaults to (0, 0, 0). If you specify None, then
+                visibilities will be computed for every index of images.
+            apply_pulsefunc (bool, optional):
+                If True, the pulse function specified in the meta data
+                will be applied. Defaults to True.
+
+        Returns:
+            numpy.ndarray:
+                full complex visibilities. The array shape will
+                depend on idx.
+        """
+        from numpy import pi, exp, asarray, unravel_index
+        from numpy.fft import fftshift, ifftshift, fft2
+
+        # get array
+        imarr = self.get_imarray()
+        nt, nf, ns, ny, nx = imarr.shape
+        nxref = self.meta["nxref"].val
+        nyref = self.meta["nyref"].val
+        dxrad = self.meta["dx"].val
+        dyrad = self.meta["dy"].val
+
+        # get uv grid
+        ug, vg = self.get_uvgrid(twodim=True)
+
+        # adjust phase
+        ix_cen = nx//2 + nx % 2  # the index of the image center used in np.fft.fft2
+        iy_cen = ny//2 + ny % 2
+        dix = ix_cen - nxref  # shift in the pixel unit
+        diy = iy_cen - nyref
+        viskernel = exp(1j*2*pi*(-dxrad*dix*ug + dyrad*diy*vg))
+
+        # mutiply the pulse function
+        if apply_pulsefunc:
+            viskernel *= self.get_pulsefunc()(ug, vg)
+
+        # define FFT function
+        def dofft(imarr2d):
+            return ifftshift(fft2(fftshift(imarr2d)))
+
+        # compute full complex visibilities
+        if idx is None:
+            shape3d = (nt, nf, ns)
+            vis = asarray([dofft(imarr[unravel_index(i, shape=shape3d)])
+                           for i in range(nt*nf*ns)]).reshape([nt, nf, ns, ny, nx])
+            vis[:, :, :] *= viskernel
+        else:
+            ndim = asarray(idx).ndim
+            if ndim == 1:
+                vis = dofft(imarr[idx])*viskernel
+            elif ndim == 2:
+                nidx = len(idx)
+                vis = asarray([dofft(imarr[tuple(idx[i])])
+                               for i in range(nidx)]).reshape([nidx, ny, nx])
+                vis[:] *= viskernel
+            else:
+                raise ValueError("Invalid dimension of the input index.")
+        return vis
 
     def get_source(self):
         """
@@ -433,6 +551,21 @@ class Image(object):
         outdic["angunit"] = angunit
         return outdic
 
+    def get_pulsefunc(self):
+        ptype = self.meta["ptype"].val.lower()
+
+        if "delta" in ptype:
+            def pulsefunc(u, v): return 1
+        elif "rect" in ptype:
+            from ..geomodel.models import Rectangular
+            dxrad = self.meta["dx"].val
+            dyrad = self.meta["dy"].val
+            pulsefunc = Rectangular(
+                Lx=dxrad, Ly=dyrad, dx=dxrad, dy=dyrad, angunit="rad").V
+        else:
+            raise ValueError("unknown pulse type: %s" % (ptype))
+        return pulsefunc
+
     def set_bconv(self, fluxunit="Jy", saunit="pixel"):
         from ..util.units import conv, Unit
         from numpy import log, pi
@@ -470,6 +603,97 @@ class Image(object):
         self.set_bconv(fluxunit=fluxunit, saunit=saunit)
         converted = self.data * self.data.bconv
         return converted.data.copy()
+
+    def convolve_geomodel(self, geomodel, inplace=False):
+        """
+        Convolve the image with an input geometrical model
+
+        Args:
+            geomodel (geomodel.GeoModel):
+                The input geometric model.
+            inplace (bool, optional):
+                If False, return the convolved image. Defaults to False.
+
+        Returns:
+            imdata.Image: the convolved image if inplace==False.
+        """
+        from numpy import real, asarray, unravel_index, conj
+        from numpy.fft import fftshift, ifftshift, fft2, ifft2
+
+        if inplace:
+            outimage = self
+        else:
+            outimage = self.copy()
+
+        # get the array shape
+        imarr = self.data.values.copy()
+        nt, nf, ns, nx, ny = self.data.shape
+        shape3d = (nt, nf, ns)
+
+        # get uv coordinates and compute kernel
+        # conj is applied because radio astronomy uses
+        # "+" for the fourier exponent
+        ug, vg = self.get_uvgrid(twodim=True)
+        convkernel = conj(geomodel.V(ug, vg))
+
+        # define convolve functions
+        def dofft(imarr2d):
+            return ifftshift(fft2(fftshift(imarr2d)))
+
+        def doifft(vis2d):
+            return real(ifftshift(ifft2(fftshift(vis2d))))
+
+        def convolve2d(imarr2d):
+            return doifft(dofft(imarr2d)*convkernel)
+
+        # run fft convolve
+        outimage.data.values = asarray([convolve2d(imarr[unravel_index(i, shape=shape3d)])
+                                        for i in range(nt*nf*ns)]).reshape([nt, nf, ns, ny, nx])
+
+        # return the output image
+        if inplace is False:
+            return outimage
+
+    def convolve_gauss(self, x0=0., y0=0., majsize=1., minsize=None, pa=0., scale=1., angunit="uas", inplace=False):
+        """
+        Gaussian Convolution.
+
+        Args:
+            x0, y0 (float, optional):
+                The centoroid position of the kernel.
+            majsize, minsize (float, optional):
+                The major- and minor- axis FWHM size of the kernel.
+            pa (int, optional):
+                The position angle of the kernel.
+            scale (int, optional):
+                The scaling factor to be applied to the kernel size.
+            angunit (str, optional):
+                The angular unit for the centroid location and kernel size.
+                Defaults to "mas".
+            inplace (bool, optional):
+                If False, return the convolved image. Defaults to False.
+
+        Returns:
+            imdata.Image: the convolved image if inplace==False.
+        """
+        from ..geomodel.models import Gaussian
+
+        # scale the axis size
+        majsize_scaled = majsize * scale
+        if minsize is None:
+            minsize_scaled = majsize_scaled
+        else:
+            minsize_scaled = minsize * scale
+
+        # initialize Gaussian model
+        geomodel = Gaussian(x0=x0, y0=y0, majsize=majsize_scaled,
+                            minsize=minsize_scaled, pa=pa, angunit=angunit)
+
+        # run convolution
+        if inplace:
+            self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
+        else:
+            return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
 
     # plotting function
     def imshow(self,
@@ -535,7 +759,7 @@ class Image(object):
 
         # Get angular unit
         angunit = self.angunit
-        imextent = self.get_extent(angunit)
+        imextent = self.get_imextent(angunit)
 
         # Get images to be plotted
         if len(idx) != 3:
@@ -708,6 +932,7 @@ class Image(object):
             uvd.add_thermal_noise(inplace=True)
         return uvd
 
+    # File Loaders
     @classmethod
     def load_fits_ehtim(cls, infits):
         """
