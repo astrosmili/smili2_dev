@@ -637,7 +637,8 @@ class Image(object):
         if not inplace:
             return outimage
 
-    def add_gauss(self, totalflux=1., x0=0., y0=0., majsize=1., minsize=None, pa=0., scale=1., angunit="uas", inplace=False):
+    def add_gauss(self, totalflux=1., x0=0., y0=0., majsize=1., minsize=None,
+                  pa=0., scale=1., angunit="uas", inplace=False):
         """
         Add a Gaussian to the image.
 
