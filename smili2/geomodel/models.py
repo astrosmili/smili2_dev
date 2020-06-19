@@ -138,28 +138,28 @@ def Triangular(totalflux=1, x0=0, y0=0, dx=1, dy=None, angunit="mas"):
     Returns:
         geomodel.geomodel.GeoModel Object for the specified Triangular function
     '''
-    from numpy import where, abs, sin, pi, exp, square
-    from ..util.units import conv as angconv
+    from numpy import where, abs, sinc, pi, square
+    from ..util.units import conv
 
     # define a Gaussian with F=1 jy, size = 1 (angunit)
-    conv = angconv(angunit, "rad")
-    dxrad = abs(conv*dx)
-    dyrad = abs(conv*dy)
+    factor = conv(angunit, "rad")
+    x0rad = x0 * factor
+    y0rad = y0 * factor
+    dxrad = abs(factor*dx)
+    dyrad = abs(factor*dy)
     dxyinv = 1./dxrad/dyrad
 
     def I(x, y):
-        xnorm = abs(x/dxrad)
-        ynorm = abs(y/dyrad)
-        return where(xnorm <= 1, (1-xnorm)/dxrad, 0)*where(ynorm <= 1, (1-ynorm)/dyrad, 0)
+        xnorm = abs(x-x0rad/dxrad)
+        ynorm = abs(y-y0rad/dyrad)
+        return totalflux*dxyinv*where(xnorm <= 1, (1-xnorm)/dxrad, 0)*where(ynorm <= 1, (1-ynorm)/dyrad, 0)
 
     def V(u, v):
-        unorm = pi*dxrad*u
-        vnorm = pi*dyrad*v
-        return square(sin(unorm)*sin(vnorm)/unorm/vnorm)
+        unorm = dxrad*u
+        vnorm = dyrad*v
+        return totalflux*square(sinc(unorm)*sinc(vnorm))
 
     output = GeoModel(V=V, I=I)
-    if totalflux != 1:
-        output = output * totalflux
     if x0 != 0 or y0 != 0:
         output = output.shift(deltax=x0, deltay=y0, angunit=angunit)
     return output
