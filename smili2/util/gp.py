@@ -8,7 +8,7 @@ from sklearn import gaussian_process
 from sklearn.gaussian_process.kernels import ConstantKernel, RBF, WhiteKernel
 
 
-def gp_interp(xin,yin,sigmain=None,xpred=None,length_scale=None,fit_noise=True,n_restarts_optimizer=1, return_std=False, return_gp=False, **gprargs):
+def gp_interp(xin, yin, sigmain=None, xpred=None, length_scale=None, fit_noise=True, n_restarts_optimizer=1, return_std=False, return_gp=False, **gprargs):
     '''
     Interpolation / Smoothing with Gaussian processing using an RBF kernel.
     This function will use the Gaussian Process Regressor in scikit-learn.
@@ -38,12 +38,14 @@ def gp_interp(xin,yin,sigmain=None,xpred=None,length_scale=None,fit_noise=True,n
         length_scale = np.min(np.abs(np.diff(xin)))
     if fit_noise:
         noise_level = np.median(np.abs(np.diff(yin)))
-        kernel = ConstantKernel() * RBF(length_scale=length_scale) + WhiteKernel(noise_level=noise_level, noise_level_bounds=noise_level*np.asarray([0.01,100]))
+        kernel = ConstantKernel() * RBF(length_scale=length_scale) + \
+            WhiteKernel(noise_level=noise_level,
+                        noise_level_bounds=noise_level*np.asarray([0.01, 100]))
     else:
         kernel = ConstantKernel() * RBF(length_scale=length_scale)
 
     # fit with Gaussian Process
-    X = xin.reshape([-1,1])
+    X = xin.reshape([-1, 1])
     y = yin.copy()
     gp = gaussian_process.GaussianProcessRegressor(
         kernel=kernel,
@@ -58,6 +60,6 @@ def gp_interp(xin,yin,sigmain=None,xpred=None,length_scale=None,fit_noise=True,n
         xpred = xin.copy()
 
     if return_gp:
-        return gp.predict(xpred.reshape([-1,1]), return_std=return_std), gp
+        return gp.predict(xpred.reshape([-1, 1]), return_std=return_std), gp
     else:
-        return gp.predict(xpred.reshape([-1,1]), return_std=return_std)
+        return gp.predict(xpred.reshape([-1, 1]), return_std=return_std)
