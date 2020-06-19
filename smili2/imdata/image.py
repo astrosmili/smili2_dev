@@ -112,7 +112,6 @@ class Image(object):
             elif key in ["x", "y"]:
                 raise ValueError(
                     "Use srccoord for the reference pixel coordinates x and y.")
-
             self.meta[key].val = args[key]
 
         # initialize data
@@ -272,7 +271,7 @@ class Image(object):
         if instrument is not None:
             self.meta["instrument"].val = instrument
 
-    def set_mjd(self, mjd):
+    def set_mjd(self, mjd, dmjd=None):
         """
         Set the MJD infromation for the image data array.
 
@@ -398,6 +397,11 @@ class Image(object):
         ymin = dy * (0 - nyref - 0.5)
 
         return asarray([xmax, xmin, ymin, ymax]) * factor
+
+    def get_imarray(self, fluxunit="Jy", saunit="pixel"):
+        self.set_bconv(fluxunit=fluxunit, saunit=saunit)
+        converted = self.data * self.data.bconv
+        return converted.data.copy()
 
     def get_uvgrid(self, twodim=False):
         """
@@ -599,10 +603,87 @@ class Image(object):
 
             self.data["bconv"] = fluxconv/saconv
 
-    def get_imarray(self, fluxunit="Jy", saunit="pixel"):
-        self.set_bconv(fluxunit=fluxunit, saunit=saunit)
-        converted = self.data * self.data.bconv
-        return converted.data.copy()
+    def add_geomodel(self, geomodel, idx=(0, 0, 0), inplace=False):
+        """
+        Add a specified geometric model to the image
+
+        Args:
+            geomodel (geomodel.GeoModel):
+                The input geometric model.
+            idx (tuble):
+                An index of the image where the Gaussians to be added.
+                Should be in the format of (time, freq, stokes).
+                Default to (0,0,0).
+            inplace (bool, optional):
+                If False, return the convolved image. Defaults to False.
+
+        Returns:
+            imdata.Image: if inplace==False.
+        """
+        if inplace:
+            outimage = self
+        else:
+            outimage = self.copy()
+
+        # get x,y coordinates
+        xg, yg = self.get_xygrid(angunit="rad", twodim=True)
+
+        # compute the intensity
+        imarr = geomodel.I(xg, yg)
+
+        # add data
+        outimage.data[idx] += imarr
+
+        if not inplace:
+            return outimage
+
+    def add_gauss(self, totalflux=1., x0=0., y0=0., majsize=1., minsize=None, pa=0., scale=1., angunit="uas", inplace=False):
+        """
+        Add a Gaussian to the image.
+
+        Args:
+            totalflux (float, optional):
+                total flux density in Jy.
+            x0, y0 (float, optional):
+                The centoroid position of the kernel.
+            majsize, minsize (float, optional):
+                The major- and minor- axis FWHM size of the kernel.
+            pa (int, optional):
+                The position angle of the kernel.
+            scale (int, optional):
+                The scaling factor to be applied to the kernel size.
+            angunit (str, optional):
+                The angular unit for the centroid location and kernel size.
+                Defaults to "mas".
+            inplace (bool, optional):
+                If False, return the convolved image. Defaults to False.
+
+        Returns:
+            imdata.Image: the convolved image if inplace==False.
+        """
+        from ..geomodel.models import Gaussian
+        from ..util.units import conv
+
+        # scale the axis size
+        majsize_scaled = majsize * scale
+        if minsize is None:
+            minsize_scaled = majsize_scaled
+        else:
+            minsize_scaled = minsize * scale
+
+        factor = conv("rad", angunit)
+        dx = self.meta["dx"].val * factor
+        dy = self.meta["dy"].val * factor
+
+        # initialize Gaussian model
+        geomodel = Gaussian(x0=x0, y0=y0, dx=dx, dy=dy, majsize=majsize_scaled,
+                            minsize=minsize_scaled, pa=pa, angunit=angunit)
+
+        # run convolution
+        if inplace:
+            self.add_geomodel(geomodel=geomodel, inplace=inplace)
+        else:
+            return self.add_geomodel(geomodel=geomodel, inplace=inplace)
 
     def convolve_geomodel(self, geomodel, inplace=False):
         """
