@@ -25,7 +25,7 @@ class Image(object):
     def __init__(self,
                  nx=128, ny=None,
                  dx=2, dy=None,
-                 nxref=None, nyref=None,
+                 ixref=None, iyref=None,
                  angunit="uas",
                  mjd=[0.],
                  freq=[230e9],
@@ -42,8 +42,8 @@ class Image(object):
             dy ([type], optional): [description]. Defaults to None.
             nx (int, optional): [description]. Defaults to 128.
             ny ([type], optional): [description]. Defaults to None.
-            nxref ([type], optional): [description]. Defaults to None.
-            nyref ([type], optional): [description]. Defaults to None.
+            ixref ([type], optional): [description]. Defaults to None.
+            iyref ([type], optional): [description]. Defaults to None.
             angunit (str, optional): [description]. Defaults to "uas".
             mjd (list, optional): [description]. Defaults to [0.].
             freq (list, optional): [description]. Defaults to [230e9].
@@ -76,15 +76,15 @@ class Image(object):
         else:
             args["ny"] = int32(ny)
 
-        # nxref & nyref
-        if nxref is None:
-            args["nxref"] = args["nx"]/2 - 0.5
+        # ixref & iyref
+        if ixref is None:
+            args["ixref"] = args["nx"]/2 - 0.5
         else:
-            args["nxref"] = float64(nxref)
-        if nyref is None:
-            args["nyref"] = args["ny"]/2 - 0.5
+            args["ixref"] = float64(ixref)
+        if iyref is None:
+            args["iyref"] = args["ny"]/2 - 0.5
         else:
-            args["nyref"] = float64(nyref)
+            args["iyref"] = float64(iyref)
 
         # ns
         args["ns"] = int32(ns)
@@ -139,7 +139,7 @@ class Image(object):
                       comment="RA of the reference pixel"),
             dx=MetaRec(val=1., unit="rad", dtype="float64",
                        comment="Pixel size in RA axis"),
-            nxref=MetaRec(val=0., unit="", dtype="float64",
+            ixref=MetaRec(val=0., unit="", dtype="float64",
                           comment="Pixel ID of the reference pixel in RA axis"),
             nx=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in RA axis"),
@@ -148,7 +148,7 @@ class Image(object):
                       comment="Dec of the reference pixel"),
             dy=MetaRec(val=1., unit="rad", dtype="float64",
                        comment="Pixel size in Dec direction"),
-            nyref=MetaRec(val=0., unit="", dtype="float64",
+            iyref=MetaRec(val=0., unit="", dtype="float64",
                           comment="Pixel ID of the reference pixel in Dec axis"),
             ny=MetaRec(val=64, unit="", dtype="int32",
                        comment="Number of pixels in Dec axis"),
@@ -222,11 +222,11 @@ class Image(object):
             # get the meta info
             nx = self.meta["n"+axis].val
             dx = self.meta["d"+axis].val
-            nxref = self.meta["n{}ref".format(axis)].val
+            ixref = self.meta["i{}ref".format(axis)].val
             sign = sign_dx[axis]
 
             # compute coordinates
-            self.data[axis] = sign*dx*(arange(nx)-nxref)
+            self.data[axis] = sign*dx*(arange(nx)-ixref)
 
     def copy(self):
         from copy import deepcopy
@@ -388,13 +388,13 @@ class Image(object):
         dy = self.meta["dy"].val
         nx = self.meta["nx"].val
         ny = self.meta["ny"].val
-        nxref = self.meta["nxref"].val
-        nyref = self.meta["nyref"].val
+        ixref = self.meta["ixref"].val
+        iyref = self.meta["iyref"].val
 
-        xmax = -dx * (0 - nxref - 0.5)
-        xmin = -dx * (nx - 1 - nxref + 0.5)
-        ymax = dy * (ny - 1 - nyref + 0.5)
-        ymin = dy * (0 - nyref - 0.5)
+        xmax = -dx * (0 - ixref - 0.5)
+        xmin = -dx * (nx - 1 - ixref + 0.5)
+        ymax = dy * (ny - 1 - iyref + 0.5)
+        ymin = dy * (0 - iyref - 0.5)
 
         return asarray([xmax, xmin, ymin, ymax]) * factor
 
@@ -473,8 +473,8 @@ class Image(object):
         # get array
         imarr = self.get_imarray()
         nt, nf, ns, ny, nx = imarr.shape
-        nxref = self.meta["nxref"].val
-        nyref = self.meta["nyref"].val
+        ixref = self.meta["ixref"].val
+        iyref = self.meta["iyref"].val
         dxrad = self.meta["dx"].val
         dyrad = self.meta["dy"].val
 
@@ -484,8 +484,8 @@ class Image(object):
         # adjust phase
         ix_cen = nx//2 + nx % 2  # the index of the image center used in np.fft.fft2
         iy_cen = ny//2 + ny % 2
-        dix = ix_cen - nxref  # shift in the pixel unit
-        diy = iy_cen - nyref
+        dix = ix_cen - ixref  # shift in the pixel unit
+        diy = iy_cen - iyref
         viskernel = exp(1j*2*pi*(-dxrad*dix*ug + dyrad*diy*vg))
 
         # mutiply the pulse function
@@ -814,7 +814,102 @@ class Image(object):
         else:
             return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
 
+    #  Regrid images (in x,y direction)
+    def regrid(self, template, preconv=True, order=1):
+        """
+        Regrid the image (only in x and y coordinates) using the grid defined
+        in the input template image.
+
+        Args:
+            template (imdata.Image object): 
+                A template image for the new image grid.
+            preconv (bool, optional):
+                If True and the new image grid interval is larger, the input 
+                image will be blurred with the rectangular pulse function of 
+                the new grid. Defaults to True.
+            order (int, optional): 
+                The order of the spline interpolation, which has to be in the 
+                range 0-5.. Defaults to 1.
+
+        Returns:
+            imdata.Image object: the regridded image.
+        """
+        from numpy import arange, zeros, meshgrid, unravel_index, asarray
+        from scipy.ndimage import map_coordinates
+
+        # get image grid information
+        dx0 = self.meta["dx"].val
+        dy0 = self.meta["dy"].val
+        ixr0 = self.meta["ixref"].val
+        iyr0 = self.meta["iyref"].val
+        ns0 = self.meta["ns"].val
+        nf0 = self.meta["nf"].val
+        nt0 = self.meta["nt"].val
+        nimage = ns0*nf0*nt0
+
+        dx1 = template.meta["dx"].val
+        dy1 = template.meta["dy"].val
+        nx1 = template.meta["nx"].val
+        ny1 = template.meta["ny"].val
+        ixr1 = template.meta["ixref"].val
+        iyr1 = template.meta["iyref"].val
+
+        # pre convolution, if we regrid the input image to a more rough grid.
+        if (dx1 > dx0 or dy1 > dy0) and preconv:
+            inputimage = self.convolve_rectangular(
+                Lx=dx1,
+                Ly=dy1,
+                angunit="rad"
+            )
+        else:
+            inputimage = self
+
+        # Compute the coordinate transfer function
+        coord = zeros([2, nx1 * ny1])
+        xgrid = (arange(nx1) - ixr1) * dx1 / dx0 + ixr0
+        ygrid = (arange(ny1) - iyr1) * dy1 / dy0 + iyr0
+        x, y = meshgrid(xgrid, ygrid)
+        coord[0, :] = y.flatten()
+        coord[1, :] = x.flatten()
+
+        # image to be output
+        outimage = Image(
+            nx=nx1,
+            ny=ny1,
+            dx=dx1,
+            dy=dy1,
+            ixref=ixr1,
+            iyref=iyr1,
+            angunit="rad",
+            mjd=self.data["mjd"].data,
+            freq=self.data["freq"].data,
+            ns=ns0,
+            source=self.meta["source"].val,
+            srccoord=self.get_source().skycoord,
+            instrument=self.meta["instrument"].val
+        )
+        outimage.auto_angunit()
+
+        # Do interpolation from the input image to the new image
+        def do_interpolate(i_image):
+            imjd, ifreq, ipol = unravel_index(i_image, shape=(nt0, nf0, ns0))
+            imarr = map_coordinates(
+                inputimage.data[imjd, ifreq, ipol],
+                coord,
+                order=order,
+                mode='constant', cval=0.0, prefilter=True
+            )
+            return imarr
+
+        outimarr = asarray([do_interpolate(i_image)
+                            for i_image in range(nimage)]).reshape(outimage.data.shape)
+        outimarr *= dx1 * dy1 / dx0 / dy0
+        outimage.data.data[:] = outimarr[:]
+
+        return outimage
+
     # plotting function
+
     def imshow(self,
                scale="linear",
                dyrange=100,
@@ -1085,13 +1180,13 @@ class Image(object):
         xdeg = hdulist[0].header["OBSRA"]
         nx = hdulist[0].header["NAXIS1"]
         dx = abs(deg2rad(hdulist[0].header["CDELT1"]))
-        nxref = hdulist[0].header["CRPIX1"]-1
+        ixref = hdulist[0].header["CRPIX1"]-1
 
         # dec axis
         ydeg = hdulist[0].header["OBSDEC"]
         ny = hdulist[0].header["NAXIS2"]
         dy = abs(deg2rad(hdulist[0].header["CDELT2"]))
-        nyref = hdulist[0].header["CRPIX2"]-1
+        iyref = hdulist[0].header["CRPIX2"]-1
 
         # stokes axis
         ns = len(hdulist)
@@ -1112,7 +1207,7 @@ class Image(object):
         outimage = cls(
             nx=nx, ny=ny,
             dx=dx, dy=dy, angunit="rad",
-            nxref=nxref, nyref=nyref,
+            ixref=ixref, iyref=iyref,
             mjd=mjd,
             freq=freq,
             ns=ns,
@@ -1195,8 +1290,8 @@ class Image(object):
             hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
             hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
             hdu.header.set("FREQ", self.data["freq"].data[ifreq])
-            hdu.header.set("CRPIX1", self.meta["nxref"].val+1)
-            hdu.header.set("CRPIX2", self.meta["nyref"].val+1)
+            hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
+            hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
             hdu.header.set("MJD", self.data["mjd"].data[imjd])
             hdu.header.set("TELESCOP", self.meta["instrument"].val)
             hdu.header.set("BUNIT", "JY/PIXEL")
