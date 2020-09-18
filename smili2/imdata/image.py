@@ -1095,17 +1095,89 @@ class Image(object):
 
         return outimage
 
-    @classmethod
-    def load_fits_smili(cls, infits):
+    # @classmethod
+    # def load_fits_smili(cls, infits):
         pass
 
-    @classmethod
-    def load_fits_aips(cls, infits):
+    # @classmethod
+    # def load_fits_aips(cls, infits):
         pass
 
-    @classmethod
-    def load_fits_casa(cls, infits):
+    # @classmethod
+    # def load_fits_casa(cls, infits):
         pass
+
+    # File Exporters
+    def to_fits_ehtim(self, outfits=None, overwrite=True, idx=(0, 0)):
+        '''
+        save the image(s) to the image FITS file or HDUList in the eht-imaging
+        library's format
+
+        Args:
+            outfits (string; default is None):
+                FITS file name. If not specified, then HDUList object will be
+                returned.
+            overwrite (boolean):
+                It True, an existing file will be overwritten.
+            idx (list):
+                Index for (MJD, FREQ)
+        Returns:
+            HDUList object if outfitsfile is None
+        '''
+        from astropy.io.fits import PrimaryHDU, ImageHDU, HDUList
+        from ..util.units import conv
+
+        # Get Data Shape
+        nt, nf, ns, ny, nx = self.data.shape
+
+        # Get the Image Array
+        if len(idx) != 2:
+            raise ValueError(
+                "idx must be a two dimensional index for (mjd, freq)")
+        else:
+            imarr = self.data.data[idx]
+            imjd, ifreq = idx
+
+        # Create HDUs
+        #   Some conversion factor
+        rad2deg = conv("rad", "deg")
+
+        hdulist = []
+        # current format assumes each HDU / stokes parameter
+        for ipol in range(ns):
+            stokes = self.data["stokes"].data[ipol]
+
+            if ipol == 0:
+                hdu = PrimaryHDU(imarr[ipol])
+            else:
+                hdu = ImageHDU(imarr[ipol], name=stokes)
+
+            # set header
+            hdu.header.set("OBJECT", self.meta["source"].val)
+            hdu.header.set("CTYPE1", "RA---SIN")
+            hdu.header.set("CTYPE2", "DEC--SIN")
+            hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
+            hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
+            hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
+            hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
+            hdu.header.set("FREQ", self.data["freq"].data[ifreq])
+            hdu.header.set("CRPIX1", self.meta["nxref"].val+1)
+            hdu.header.set("CRPIX2", self.meta["nyref"].val+1)
+            hdu.header.set("MJD", self.data["mjd"].data[imjd])
+            hdu.header.set("TELESCOP", self.meta["instrument"].val)
+            hdu.header.set("BUNIT", "JY/PIXEL")
+            hdu.header.set("STOKES", stokes)
+
+            # appended to HDUList
+            hdulist.append(hdu)
+
+        # convert the list of HDUs to HDUList
+        hdulist = HDUList(hdulist)
+
+        if outfits is None:
+            return hdulist
+        else:
+            hdulist.writeto(outfits, overwrite=True)
 
 
 # shortcut to I/O functions
