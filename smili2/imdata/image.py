@@ -778,8 +778,24 @@ class Image(object):
         else:
             return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
 
-    def convolve_rectanguler(self, x0=0., y0=0., Lx=1., Ly=None, angunit="mas", inplace=False):
+    def convolve_rectangular(self, x0=0., y0=0., Lx=1., Ly=None, angunit="mas", inplace=False):
+        """
+        Convolution with a rectangular kernel
 
+        Args:
+            x0, y0 (float, optional):
+                The centoroid position of the kernel.
+            Lx, Ly (float, optional):
+                The width of the kernel.
+            angunit (str, optional):
+                The angular unit for the centroid location and kernel size.
+                Defaults to "mas".
+            inplace (bool, optional):
+                If False, return the convolved image. Defaults to False.
+
+        Returns:
+            imdata.Image: the convolved image if inplace==False.
+        """
         from ..geomodel.models import Rectangular
         from ..util.units import conv
 
