@@ -897,6 +897,8 @@ class Image(object):
             return im
         '''
 
+        return im
+
     def plot_xylabel(self):
         from ..util.plot import get_angunitlabel
         from matplotlib.pyplot import xlabel, ylabel
