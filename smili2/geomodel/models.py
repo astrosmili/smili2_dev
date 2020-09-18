@@ -98,6 +98,8 @@ def Rectangular(totalflux=1., x0=0., y0=0., Lx=1., Ly=None, dx=1., dy=None, angu
 
     if dy is None:
         dy = dx
+    if Ly is None:
+        Ly = Lx
 
     # convert angular units
     factor = conv(angunit, "rad")

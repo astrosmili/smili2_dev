@@ -686,6 +686,7 @@ class Image(object):
         else:
             return self.add_geomodel(geomodel=geomodel, inplace=inplace)
 
+    #  Convolution with Geometric Models
     def convolve_geomodel(self, geomodel, inplace=False):
         """
         Convolve the image with an input geometrical model
@@ -770,6 +771,26 @@ class Image(object):
         # initialize Gaussian model
         geomodel = Gaussian(x0=x0, y0=y0, majsize=majsize_scaled,
                             minsize=minsize_scaled, pa=pa, angunit=angunit)
+
+        # run convolution
+        if inplace:
+            self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
+        else:
+            return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
+
+    def convolve_rectanguler(self, x0=0., y0=0., Lx=1., Ly=None, angunit="mas", inplace=False):
+
+        from ..geomodel.models import Rectangular
+        from ..util.units import conv
+
+        # get the pixel size of the image
+        rad2aunit = conv("rad", angunit)
+        dx = self.meta["dx"].val * rad2aunit
+        dy = self.meta["dy"].val * rad2aunit
+
+        # initialize Gaussian model
+        geomodel = Rectangular(x0=x0, y0=y0, Lx=Lx, Ly=Ly, dx=dx, dy=dy,
+                               angunit=angunit)
 
         # run convolution
         if inplace:
@@ -1097,15 +1118,12 @@ class Image(object):
 
     # @classmethod
     # def load_fits_smili(cls, infits):
-        pass
 
     # @classmethod
     # def load_fits_aips(cls, infits):
-        pass
 
     # @classmethod
     # def load_fits_casa(cls, infits):
-        pass
 
     # File Exporters
     def to_fits_ehtim(self, outfits=None, overwrite=True, idx=(0, 0)):
@@ -1122,13 +1140,13 @@ class Image(object):
             idx (list):
                 Index for (MJD, FREQ)
         Returns:
-            HDUList object if outfitsfile is None
+            HDUList object if outfits is None
         '''
         from astropy.io.fits import PrimaryHDU, ImageHDU, HDUList
         from ..util.units import conv
 
-        # Get Data Shape
-        nt, nf, ns, ny, nx = self.data.shape
+        # Get the number of stokes parameters
+        ns = self.data.shape[2]
 
         # Get the Image Array
         if len(idx) != 2:
@@ -1171,9 +1189,10 @@ class Image(object):
             # appended to HDUList
             hdulist.append(hdu)
 
-        # convert the list of HDUs to HDUList
+        # Convert the list of HDUs to HDUList
         hdulist = HDUList(hdulist)
 
+        # return or write HDUList
         if outfits is None:
             return hdulist
         else:
