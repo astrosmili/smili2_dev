@@ -1148,7 +1148,12 @@ class Image(object):
             uvd.add_thermal_noise(inplace=True)
         return uvd
 
+
+    
+    #
     # File Loaders
+    #
+    
     @classmethod
     def load_fits_ehtim(cls, infits):
         """
@@ -1233,10 +1238,97 @@ class Image(object):
     # @classmethod
     # def load_fits_aips(cls, infits):
 
-    # @classmethod
-    # def load_fits_casa(cls, infits):
 
+    
+    @classmethod
+    def load_fits_casa(cls, infits):
+        """
+        Load a FITS Image in CASA's format into an imdata.Image instance.
+        Args:
+            infits (str or astropy.io.fits.HDUList):
+                input FITS filename or HDUList instance
+        Returns:
+            imdata.Image: loaded image
+        """
+        import astropy.io.fits as pf
+        from numpy import abs, deg2rad
+        from astropy.coordinates import SkyCoord
+        from astropy.time import Time
+        from ..util.units import DEG
+
+        isfile = False
+        if isinstance(infits, str):
+            hdulist = pf.open(infits)
+            isfile = True
+        elif isinstance(infits, pf.HDUList):
+            hdulist = infits.copy()
+
+
+        # for k, v in hdu0.header.items():
+        #     pass
+            
+        # number of the Stokes Parameter
+        # ns = len(hdulist)
+
+        # ra axis
+        xdeg = hdulist[0].header["OBSRA"]
+        nx = hdulist[0].header["NAXIS1"]
+        dx = abs(deg2rad(hdulist[0].header["CDELT1"]))
+        ixref = hdulist[0].header["CRPIX1"]-1
+
+        # dec axis
+        ydeg = hdulist[0].header["OBSDEC"]
+        ny = hdulist[0].header["NAXIS2"]
+        dy = abs(deg2rad(hdulist[0].header["CDELT2"]))
+        iyref = hdulist[0].header["CRPIX2"]-1
+
+        # stokes axis
+        ns = len(hdulist)
+
+        # time axis 
+        isot = hdulist[0].header["DATE-OBS"]
+        tim = Time(isot, format='isot', scale='utc') 
+        mjd = [tim.mjd]
+
+        # frequency
+        freq = [hdulist[0].header["CRVAL3"]]
+
+        # source
+        source = hdulist[0].header["OBJECT"]
+        srccoord = SkyCoord(ra=xdeg*DEG, dec=ydeg*DEG)
+
+        # telescope
+        instrument = hdulist[0].header["TELESCOP"]
+
+        outimage = cls(
+            nx=nx, ny=ny,
+            dx=dx, dy=dy, angunit="rad",
+            ixref=ixref, iyref=iyref,
+            mjd=mjd,
+            freq=freq,
+            ns=ns,
+            source=source,
+            srccoord=srccoord,
+            instrument=instrument
+        )
+
+        for i in range(ns):
+            outimage.data[0, 0, i] = hdulist[i].data[0,0].copy()
+
+        if isfile:
+            hdulist.close()
+
+        # update angunit
+        outimage.auto_angunit()
+
+        return outimage
+
+    
+
+    #
     # File Exporters
+    #
+    
     def to_fits_ehtim(self, outfits=None, overwrite=True, idx=(0, 0)):
         '''
         save the image(s) to the image FITS file or HDUList in the eht-imaging
@@ -1289,7 +1381,79 @@ class Image(object):
             hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
             hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
             hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
-            hdu.header.set("FREQ", self.data["freq"].data[ifreq])
+            hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
+            hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
+            hdu.header.set("MJD", self.data["mjd"].data[imjd])
+            hdu.header.set("TELESCOP", self.meta["instrument"].val)
+            hdu.header.set("BUNIT", "JY/PIXEL")
+            hdu.header.set("STOKES", stokes)
+
+            # appended to HDUList
+            hdulist.append(hdu)
+
+        # Convert the list of HDUs to HDUList
+        hdulist = HDUList(hdulist)
+
+        # return or write HDUList
+        if outfits is None:
+            return hdulist
+        else:
+            hdulist.writeto(outfits, overwrite=True)
+
+
+
+
+    def to_fits_casa(self, outfits=None, overwrite=True, idx=(0, 0)):
+        '''
+        Save the image(s) to the image FITS file or HDUList in the CASA format
+        Args:
+            outfits (string; default is None):
+                FITS file name. If not specified, then HDUList object will be
+                returned.
+            overwrite (boolean):
+                It True, an existing file will be overwritten.
+            idx (list):
+                Index for (MJD, FREQ)
+        Returns:
+            HDUList object if outfits is None
+        '''
+        from astropy.io.fits import PrimaryHDU, ImageHDU, HDUList
+        from ..util.units import conv
+
+        # Get the number of stokes parameters
+        ns = self.data.shape[2]
+
+        # Get the Image Array
+        if len(idx) != 2:
+            raise ValueError(
+                "idx must be a two dimensional index for (mjd, freq)")
+        else:
+            imarr = self.data.data[idx]
+            imjd, ifreq = idx
+
+        # Create HDUs
+        #   Some conversion factor(s)
+        rad2deg = conv("rad", "deg")
+
+        hdulist = []
+        # current format assumes each HDU / stokes parameter
+        for ipol in range(ns):
+            stokes = self.data["stokes"].data[ipol]
+
+            if ipol == 0:
+                hdu = PrimaryHDU(imarr[ipol])
+            else:
+                hdu = ImageHDU(imarr[ipol], name=stokes)
+
+            # set header
+            hdu.header.set("OBJECT", self.meta["source"].val)
+            hdu.header.set("CTYPE1", "RA---SIN")
+            hdu.header.set("CTYPE2", "DEC--SIN")
+            hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
+            hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
+            hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
+            hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
+            hdu.header.set("FREQ", self.data["freq"].data[ifreq]) # Change!!! 
             hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
             hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
             hdu.header.set("MJD", self.data["mjd"].data[imjd])
@@ -1312,3 +1476,6 @@ class Image(object):
 
 # shortcut to I/O functions
 load_fits_ehtim = Image.load_fits_ehtim
+load_fits_casa =  Image.load_fits_casa
+
+

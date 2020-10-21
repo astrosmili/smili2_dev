@@ -9,4 +9,8 @@ __author__ = "Smili Developer Team"
 # Modules
 # -------------------------------------------------------------------------
 from .image import Image
-from .image import load_fits_ehtim
+from .image import load_fits_ehtim, load_fits_casa
+
+
+
+
