@@ -17,7 +17,7 @@ class MetaData(OrderedDict):
     """
 
     def __repr__(self):
-        formatstr = "{:<10} {:<20} {:<5} {:<7} {:<}"
+        formatstr = "{:<10} {:<22} {:<5} {:<7} {:<}"
         string = formatstr.format("name", "value", "unit", "dtype", "comment")
         for key in self.keys():
             rec = self[key]

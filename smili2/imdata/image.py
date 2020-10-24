@@ -28,7 +28,8 @@ class Image(object):
                  ixref=None, iyref=None,
                  angunit="uas",
                  mjd=[0.],
-                 freq=[230e9],
+                 freq=None,                               # [230e9],
+                 nfreq=None, ifref=None, fref=None, fdel=None, funit=None,
                  ns=1,
                  source=None,
                  srccoord=None,
@@ -47,6 +48,11 @@ class Image(object):
             angunit (str, optional): [description]. Defaults to "uas".
             mjd (list, optional): [description]. Defaults to [0.].
             freq (list, optional): [description]. Defaults to [230e9].
+            nfreq (int, optional),
+            ifref (int, optional), 
+            fref(float, optional), 
+            fdel(float, optional)
+            funit(str, optional): CRPIX, CRVAL, CDELT, and CUNIT for frequency.
             source (str): The source name.
             srccoord (astropy.coordinates.SkyCoord):
                 Coordinates of the source. If not specified,
@@ -57,7 +63,7 @@ class Image(object):
             meta (util.metadata.MetaData): Meta data
             angunit (str): Angular Unit
         """
-        from numpy import float64, int32, abs, isscalar
+        from numpy import float64, int32, abs, isscalar, arange
         from ..util.units import conv
 
         # Parse arguments
@@ -86,6 +92,49 @@ class Image(object):
         else:
             args["iyref"] = float64(iyref)
 
+
+        # nfreq, ifref, fref, fdel, funit - if present, freq param is ignored
+        if nfreq or ifref or fref or fdel:
+            # nfreq
+            if nfreq is None:
+                nfreq = int32(1)
+
+            # ifref
+            if ifref is None:
+                args["ifref"] = int32(0)
+            else:
+                args["ifref"] = int32(ifref)
+
+            # fref
+            if fref is None:
+                args["fref"] = float64(230e9)
+            else:
+                args["fref"] = float64(fref)
+
+            # fdel
+            if fdel is None:
+                args["fdel"] = float64(1e9)
+            else:
+                args["fdel"] = float64(fdel)
+
+            # funit
+            if funit is None:
+                args["funit"] = 'Hz      '
+            else:
+                args["funit"] = funit
+
+            # freq = CRVAL + CDELT*(np.arange(NAXIS) - CRPIX + 1)
+            freq = fref + fdel*(arange(nfreq) - ifref)
+        else:
+            # freq
+            if freq is None:
+                freq = [230e9]
+            if isscalar(freq):
+                args["freq"] = float64(freq)
+            else:
+                args["freq"] = float64(freq[0])
+
+
         # ns
         args["ns"] = int32(ns)
 
@@ -105,14 +154,19 @@ class Image(object):
         self.angunit = angunit
 
         # initialize meta data
+
+        print('args = ', args)
+        
         self._init_meta()
         for key in args.keys():
             if key not in self.meta.keys():
                 raise ValueError("Key '{}' is not in the meta.".format(key))
             elif key in ["x", "y"]:
-                raise ValueError(
-                    "Use srccoord for the reference pixel coordinates x and y.")
+                raise ValueError("Use srccoord for the reference pixel " \
+                                 "coordinates x and y.")
             self.meta[key].val = args[key]
+            print('self.meta[key].val = args[', key, '] = ', args[key])
+            
 
         # initialize data
         self.set_source(source, srccoord)
@@ -140,7 +194,7 @@ class Image(object):
             dx=MetaRec(val=1., unit="rad", dtype="float64",
                        comment="Pixel size in RA axis"),
             ixref=MetaRec(val=0., unit="", dtype="float64",
-                          comment="Pixel ID of the reference pixel in RA axis"),
+                       comment="Pixel ID of the reference pixel in RA axis"),
             nx=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in RA axis"),
             # Dec
@@ -149,7 +203,7 @@ class Image(object):
             dy=MetaRec(val=1., unit="rad", dtype="float64",
                        comment="Pixel size in Dec direction"),
             iyref=MetaRec(val=0., unit="", dtype="float64",
-                          comment="Pixel ID of the reference pixel in Dec axis"),
+                       comment="Pixel ID of the reference pixel in Dec axis"),
             ny=MetaRec(val=64, unit="", dtype="int32",
                        comment="Number of pixels in Dec axis"),
             # Stokes/Polarization
@@ -157,7 +211,19 @@ class Image(object):
                        comment="Number of pixels in Stokes axis"),
             # Frequency
             nf=MetaRec(val=1, unit="", dtype="int32",
-                       comment="Number of pixels in Freq. axis"),
+                       comment="Number of pixels in Freq axis"),
+            nfreq=MetaRec(val=1, unit="", dtype="int32",
+                       comment="Number of pixels in Freq axis"),
+            ifref=MetaRec(val=0, unit="", dtype="int32",
+                          comment="Pixel ID of the reference pixel " \
+                          "in Freq axis"),
+            fref=MetaRec(val=230e9, unit="Hz", dtype="float64",
+                         comment="Frequency at the reference pixel " \
+                          "in Freq axis"),
+            fdel=MetaRec(val=1e6, unit="Hz", dtype="float64",
+                         comment="Frequency increment in Freq axis"),
+            funit=MetaRec(val='Hz      ', unit="", dtype="float64",
+                         comment="Frequency units from fits file header"),
             # Time
             nt=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Time axis"),
@@ -208,8 +274,8 @@ class Image(object):
         elif ns == 4:
             self.data["stokes"] = ["I", "Q", "U", "V"]
         else:
-            raise ValueError(
-                "Current version of SMILI accepts only single or full polarization images.")
+            raise ValueError("Current version of SMILI accepts only" \
+                             "single or full polarization images.")
 
     def init_xygrid(self):
         '''
@@ -1251,7 +1317,7 @@ class Image(object):
             imdata.Image: loaded image
         """
         import astropy.io.fits as pf
-        from numpy import abs, deg2rad
+        from numpy import abs, deg2rad, arange
         from astropy.coordinates import SkyCoord
         from astropy.time import Time
         from ..util.units import DEG
@@ -1263,49 +1329,54 @@ class Image(object):
         elif isinstance(infits, pf.HDUList):
             hdulist = infits.copy()
 
-
+        hdu0 = hdulist[0]
+        
         # for k, v in hdu0.header.items():
         #     pass
             
-        # number of the Stokes Parameter
-        # ns = len(hdulist)
-
         # ra axis
-        xdeg = hdulist[0].header["OBSRA"]
-        nx = hdulist[0].header["NAXIS1"]
-        dx = abs(deg2rad(hdulist[0].header["CDELT1"]))
-        ixref = hdulist[0].header["CRPIX1"]-1
+        xdeg = hdu0.header["OBSRA"]
+        nx = hdu0.header["NAXIS1"]
+        dx = abs(deg2rad(hdu0.header["CDELT1"]))
+        ixref = hdu0.header["CRPIX1"] - 1
 
         # dec axis
-        ydeg = hdulist[0].header["OBSDEC"]
-        ny = hdulist[0].header["NAXIS2"]
-        dy = abs(deg2rad(hdulist[0].header["CDELT2"]))
-        iyref = hdulist[0].header["CRPIX2"]-1
+        ydeg = hdu0.header["OBSDEC"]
+        ny = hdu0.header["NAXIS2"]
+        dy = abs(deg2rad(hdu0.header["CDELT2"]))
+        iyref = hdu0.header["CRPIX2"] - 1
 
         # stokes axis
         ns = len(hdulist)
 
         # time axis 
-        isot = hdulist[0].header["DATE-OBS"]
-        tim = Time(isot, format='isot', scale='utc') 
-        mjd = [tim.mjd]
+        isot = hdu0.header["DATE-OBS"]         # In the ISO time format
+        tim = Time(isot, format='isot', scale='utc') # An astropy.time object
+        mjd = [tim.mjd]                              # Modified Julian Date
 
         # frequency
-        freq = [hdulist[0].header["CRVAL3"]]
+        nfreq = hdu0.header["NAXIS3"]
+        fref =  hdu0.header["CRVAL3"]
+        fdel =  hdu0.header["CDELT3"]
+        ifref = hdu0.header["CRPIX3"] - 1
+        funit = hdu0.header["CUNIT3"]
+        # freq = CRVAL3 + CDELT3*(np.arange(NAXIS3) - CRPIX3 + 1)
+        # freq = fref + fdel*(arange(nfreq) - ifref)
 
         # source
-        source = hdulist[0].header["OBJECT"]
+        source = hdu0.header["OBJECT"]
         srccoord = SkyCoord(ra=xdeg*DEG, dec=ydeg*DEG)
 
         # telescope
-        instrument = hdulist[0].header["TELESCOP"]
+        instrument = hdu0.header["TELESCOP"]
 
         outimage = cls(
             nx=nx, ny=ny,
             dx=dx, dy=dy, angunit="rad",
             ixref=ixref, iyref=iyref,
             mjd=mjd,
-            freq=freq,
+            freq=None,   # Array freq will be created in the cls.__init__()
+            nf=nfreq, ifref=ifref, fref=fref, fdel=fdel, funit=funit,
             ns=ns,
             source=source,
             srccoord=srccoord,
@@ -1381,6 +1452,7 @@ class Image(object):
             hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
             hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
             hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
+            hdu.header.set("FREQ", self.data["freq"].data[ifreq]) 
             hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
             hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
             hdu.header.set("MJD", self.data["mjd"].data[imjd])
@@ -1401,7 +1473,7 @@ class Image(object):
             hdulist.writeto(outfits, overwrite=True)
 
 
-
+# NAXIS ??????????????????????????????????????
 
     def to_fits_casa(self, outfits=None, overwrite=True, idx=(0, 0)):
         '''
@@ -1447,15 +1519,30 @@ class Image(object):
 
             # set header
             hdu.header.set("OBJECT", self.meta["source"].val)
+
             hdu.header.set("CTYPE1", "RA---SIN")
-            hdu.header.set("CTYPE2", "DEC--SIN")
+            hdu.header.set("CRVAL1", self.meta["x"].val*rad2deg)
             hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
+            hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
+            #hdu.header.set("CUNIT1", self.meta["x"].unit)
+            hdu.header.set("CUNIT1", "deg")
+            
+            hdu.header.set("CTYPE2", "DEC--SIN")
+            hdu.header.set("CRVAL2", self.meta["y"].val*rad2deg)
             hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
+            hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
+            #hdu.header.set("CUNIT2", self.meta["y"].unit)
+            hdu.header.set("CUNIT2", "deg")
+
+            hdu.header.set("CTYPE3", "FREQ    ")
+            hdu.header.set("CRVAL3", self.meta["fref"].val)
+            hdu.header.set("CDELT3", self.meta["fdel"].val)
+            hdu.header.set("CRPIX3", self.meta["ifref"].val+1)
+            hdu.header.set("CUNIT3", self.meta["funit"].val)
+            
             hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
             hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
-            hdu.header.set("FREQ", self.data["freq"].data[ifreq]) # Change!!! 
-            hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
-            hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
+            hdu.header.set("FREQ", self.data["freq"].data[ifreq])
             hdu.header.set("MJD", self.data["mjd"].data[imjd])
             hdu.header.set("TELESCOP", self.meta["instrument"].val)
             hdu.header.set("BUNIT", "JY/PIXEL")
