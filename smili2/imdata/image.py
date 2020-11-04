@@ -210,6 +210,8 @@ class Image(object):
             ns=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Stokes axis"),
             # Frequency
+            freq=MetaRec(val=230e9, unit="Hz", dtype="float64",
+                         comment="Frequency"),
             nf=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Freq axis"),
             nfreq=MetaRec(val=1, unit="", dtype="int32",
@@ -1220,6 +1222,10 @@ class Image(object):
     # File Loaders
     #
     
+    #
+    # LOAD FITS EHTIM
+    #
+    
     @classmethod
     def load_fits_ehtim(cls, infits):
         """
@@ -1298,13 +1304,23 @@ class Image(object):
 
         return outimage
 
+
+    #
+    # LOAD FITS SMILI
+    #
+    
     # @classmethod
     # def load_fits_smili(cls, infits):
+
 
     # @classmethod
     # def load_fits_aips(cls, infits):
 
 
+    
+    #
+    # LOAD FITS CASA
+    #
     
     @classmethod
     def load_fits_casa(cls, infits):
@@ -1346,9 +1362,6 @@ class Image(object):
         dy = abs(deg2rad(hdu0.header["CDELT2"]))
         iyref = hdu0.header["CRPIX2"] - 1
 
-        # stokes axis
-        ns = len(hdulist)
-
         # time axis 
         isot = hdu0.header["DATE-OBS"]         # In the ISO time format
         tim = Time(isot, format='isot', scale='utc') # An astropy.time object
@@ -1362,6 +1375,13 @@ class Image(object):
         funit = hdu0.header["CUNIT3"]
         # freq = CRVAL3 + CDELT3*(np.arange(NAXIS3) - CRPIX3 + 1)
         # freq = fref + fdel*(arange(nfreq) - ifref)
+
+        # stokes axis
+        ns = hdu0.header["NAXIS4"]
+        #sref =  hdu0.header["CRVAL4"]
+        #sdel =  hdu0.header["CDELT4"]
+        #isref = hdu0.header["CRPIX4"] - 1
+        #sunit = hdu0.header["CUNIT4"]
 
         # source
         source = hdu0.header["OBJECT"]
@@ -1435,7 +1455,7 @@ class Image(object):
         rad2deg = conv("rad", "deg")
 
         hdulist = []
-        # current format assumes each HDU / stokes parameter
+        # current EHTIM format assumes each HDU / stokes parameter
         for ipol in range(ns):
             stokes = self.data["stokes"].data[ipol]
 
@@ -1473,7 +1493,6 @@ class Image(object):
             hdulist.writeto(outfits, overwrite=True)
 
 
-# NAXIS ??????????????????????????????????????
 
     def to_fits_casa(self, outfits=None, overwrite=True, idx=(0, 0)):
         '''
@@ -1508,48 +1527,48 @@ class Image(object):
         rad2deg = conv("rad", "deg")
 
         hdulist = []
-        # current format assumes each HDU / stokes parameter
-        for ipol in range(ns):
-            stokes = self.data["stokes"].data[ipol]
 
-            if ipol == 0:
-                hdu = PrimaryHDU(imarr[ipol])
-            else:
-                hdu = ImageHDU(imarr[ipol], name=stokes)
+        hdu = PrimaryHDU(imarr[ipol])
 
-            # set header
-            hdu.header.set("OBJECT", self.meta["source"].val)
+        # set header
+        hdu.header.set("OBJECT", self.meta["source"].val)
 
-            hdu.header.set("CTYPE1", "RA---SIN")
-            hdu.header.set("CRVAL1", self.meta["x"].val*rad2deg)
-            hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
-            hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
-            #hdu.header.set("CUNIT1", self.meta["x"].unit)
-            hdu.header.set("CUNIT1", "deg")
-            
-            hdu.header.set("CTYPE2", "DEC--SIN")
-            hdu.header.set("CRVAL2", self.meta["y"].val*rad2deg)
-            hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
-            hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
-            #hdu.header.set("CUNIT2", self.meta["y"].unit)
-            hdu.header.set("CUNIT2", "deg")
+        hdu.header.set("CTYPE1", "RA---SIN")
+        hdu.header.set("CRVAL1", self.meta["x"].val*rad2deg)
+        hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
+        hdu.header.set("CRPIX1", self.meta["ixref"].val+1)
+        #hdu.header.set("CUNIT1", self.meta["x"].unit)
+        hdu.header.set("CUNIT1", "deg")
 
-            hdu.header.set("CTYPE3", "FREQ    ")
-            hdu.header.set("CRVAL3", self.meta["fref"].val)
-            hdu.header.set("CDELT3", self.meta["fdel"].val)
-            hdu.header.set("CRPIX3", self.meta["ifref"].val+1)
-            hdu.header.set("CUNIT3", self.meta["funit"].val)
-            
-            hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
-            hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
-            hdu.header.set("FREQ", self.data["freq"].data[ifreq])
-            hdu.header.set("MJD", self.data["mjd"].data[imjd])
-            hdu.header.set("TELESCOP", self.meta["instrument"].val)
-            hdu.header.set("BUNIT", "JY/PIXEL")
-            hdu.header.set("STOKES", stokes)
+        hdu.header.set("CTYPE2", "DEC--SIN")
+        hdu.header.set("CRVAL2", self.meta["y"].val*rad2deg)
+        hdu.header.set("CDELT2", self.meta["dy"].val*rad2deg)
+        hdu.header.set("CRPIX2", self.meta["iyref"].val+1)
+        #hdu.header.set("CUNIT2", self.meta["y"].unit)
+        hdu.header.set("CUNIT2", "deg")
 
-            # appended to HDUList
-            hdulist.append(hdu)
+        hdu.header.set("CTYPE3", "FREQ    ")
+        hdu.header.set("CRVAL3", self.meta["fref"].val)
+        hdu.header.set("CDELT3", self.meta["fdel"].val)
+        hdu.header.set("CRPIX3", self.meta["ifref"].val+1)
+        hdu.header.set("CUNIT3", self.meta["funit"].val)
+
+        hdu.header.set("CTYPE4", "STOKES  ")
+        hdu.header.set("CRVAL4", 1.0)
+        hdu.header.set("CDELT4", 1.0)
+        hdu.header.set("CRPIX4", 1.0)
+        hdu.header.set("CUNIT4", '        ')
+
+        hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
+        hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
+        hdu.header.set("FREQ", self.data["freq"].data[ifreq])
+        hdu.header.set("MJD", self.data["mjd"].data[imjd])
+        hdu.header.set("TELESCOP", self.meta["instrument"].val)
+        hdu.header.set("BUNIT", "JY/PIXEL")
+        hdu.header.set("STOKES", stokes)
+
+        # appended to HDUList
+        hdulist.append(hdu)
 
         # Convert the list of HDUs to HDUList
         hdulist = HDUList(hdulist)
