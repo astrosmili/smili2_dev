@@ -28,8 +28,8 @@ class Image(object):
                  ixref=None, iyref=None,
                  angunit="uas",
                  mjd=[0.],
-                 freq=None,                               # [230e9],
-                 nfreq=None, ifref=None, fref=None, fdel=None, funit=None,
+                 freq=[230e9],
+                 #nfreq=None, ifref=None, fref=None, fdel=None, funit=None,
                  ns=1,
                  source=None,
                  srccoord=None,
@@ -48,11 +48,12 @@ class Image(object):
             angunit (str, optional): [description]. Defaults to "uas".
             mjd (list, optional): [description]. Defaults to [0.].
             freq (list, optional): [description]. Defaults to [230e9].
-            nfreq (int, optional),
-            ifref (int, optional), 
-            fref(float, optional), 
-            fdel(float, optional)
-            funit(str, optional): CRPIX, CRVAL, CDELT, and CUNIT for frequency.
+            ns (int, optional): [description]. Defaults to 1.
+            # nfreq (int, optional),
+            # ifref (int, optional), 
+            # fref(float, optional), 
+            # fdel(float, optional)
+            # funit(str, optional): CRPIX, CRVAL, CDELT, and CUNIT for freq.
             source (str): The source name.
             srccoord (astropy.coordinates.SkyCoord):
                 Coordinates of the source. If not specified,
@@ -77,7 +78,7 @@ class Image(object):
 
         #  nx & ny
         args["nx"] = int32(nx)
-        if ny is None:
+        if ny is None: 
             args["ny"] = args["nx"]
         else:
             args["ny"] = int32(ny)
@@ -94,46 +95,48 @@ class Image(object):
 
 
         # nfreq, ifref, fref, fdel, funit - if present, freq param is ignored
-        if nfreq or ifref or fref or fdel:
-            # nfreq
-            if nfreq is None:
-                nfreq = int32(1)
+        # if nfreq or ifref or fref or fdel:
+        #     # nfreq
+        #     if nfreq is None:
+        #         nfreq = int32(1)
 
-            # ifref
-            if ifref is None:
-                args["ifref"] = int32(0)
-            else:
-                args["ifref"] = int32(ifref)
+        #     # ifref
+        #     if ifref is None:
+        #         args["ifref"] = int32(0)
+        #     else:
+        #         args["ifref"] = int32(ifref)
 
-            # fref
-            if fref is None:
-                args["fref"] = float64(230e9)
-            else:
-                args["fref"] = float64(fref)
+        #     # fref
+        #     if fref is None:
+        #         args["fref"] = float64(230e9)
+        #     else:
+        #         args["fref"] = float64(fref)
 
-            # fdel
-            if fdel is None:
-                args["fdel"] = float64(1e9)
-            else:
-                args["fdel"] = float64(fdel)
+        #     # fdel
+        #     if fdel is None:
+        #         args["fdel"] = float64(1e9)
+        #     else:
+        #         args["fdel"] = float64(fdel)
 
-            # funit
-            if funit is None:
-                args["funit"] = 'Hz      '
-            else:
-                args["funit"] = funit
+        #     # funit
+        #     if funit is None:
+        #         args["funit"] = 'Hz      '
+        #     else:
+        #         args["funit"] = funit
 
-            # freq = CRVAL + CDELT*(np.arange(NAXIS) - CRPIX + 1)
-            freq = fref + fdel*(arange(nfreq) - ifref)
+        #     # freq = CRVAL + CDELT*(np.arange(NAXIS) - CRPIX + 1)
+        #     freq = fref + fdel*(arange(nfreq) - ifref)
+        # else:
+        
+        # freq
+#        if freq is None:
+#            freq = [230e9]
+        if isscalar(freq):
+            args["nf"] = float64(freq)
+#            args["freq"] = float64(freq)
         else:
-            # freq
-            if freq is None:
-                freq = [230e9]
-            if isscalar(freq):
-                args["freq"] = float64(freq)
-            else:
-                args["freq"] = float64(freq[0])
-
+            args["nf"] = len(freq)
+#            args["freq"] = float64(freq[0])
 
         # ns
         args["ns"] = int32(ns)
@@ -155,7 +158,7 @@ class Image(object):
 
         # initialize meta data
 
-        print('args = ', args)
+#        print('args = ', args)
         
         self._init_meta()
         for key in args.keys():
@@ -165,7 +168,7 @@ class Image(object):
                 raise ValueError("Use srccoord for the reference pixel " \
                                  "coordinates x and y.")
             self.meta[key].val = args[key]
-            print('self.meta[key].val = args[', key, '] = ', args[key])
+#            print('self.meta[key].val = args[', key, '] = ', args[key])
             
 
         # initialize data
@@ -210,22 +213,24 @@ class Image(object):
             ns=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Stokes axis"),
             # Frequency
-            freq=MetaRec(val=230e9, unit="Hz", dtype="float64",
-                         comment="Frequency"),
             nf=MetaRec(val=1, unit="", dtype="int32",
-                       comment="Number of pixels in Freq axis"),
-            nfreq=MetaRec(val=1, unit="", dtype="int32",
-                       comment="Number of pixels in Freq axis"),
-            ifref=MetaRec(val=0, unit="", dtype="int32",
-                          comment="Pixel ID of the reference pixel " \
-                          "in Freq axis"),
-            fref=MetaRec(val=230e9, unit="Hz", dtype="float64",
-                         comment="Frequency at the reference pixel " \
-                          "in Freq axis"),
-            fdel=MetaRec(val=1e6, unit="Hz", dtype="float64",
-                         comment="Frequency increment in Freq axis"),
-            funit=MetaRec(val='Hz      ', unit="", dtype="float64",
-                         comment="Frequency units from fits file header"),
+                       comment="Number of pixels in Freq. axis"),
+            # freq=MetaRec(val=230e9, unit="Hz", dtype="float64",
+            #              comment="Frequency"),
+            # nf=MetaRec(val=1, unit="", dtype="int32",
+            #            comment="Number of pixels in Freq axis"),
+            # nfreq=MetaRec(val=1, unit="", dtype="int32",
+            #            comment="Number of pixels in Freq axis"),
+            # ifref=MetaRec(val=0, unit="", dtype="int32",
+            #               comment="Pixel ID of the reference pixel " \
+            #               "in Freq axis"),
+            # fref=MetaRec(val=230e9, unit="Hz", dtype="float64",
+            #              comment="Frequency at the reference pixel " \
+            #               "in Freq axis"),
+            # fdel=MetaRec(val=1e6, unit="Hz", dtype="float64",
+            #              comment="Frequency increment in Freq axis"),
+            # funit=MetaRec(val='Hz      ', unit="", dtype="float64",
+            #              comment="Frequency units from fits file header"),
             # Time
             nt=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Time axis"),
@@ -798,14 +803,16 @@ class Image(object):
             return doifft(dofft(imarr2d)*convkernel)
 
         # run fft convolve
-        outimage.data.values = asarray([convolve2d(imarr[unravel_index(i, shape=shape3d)])
-                                        for i in range(nt*nf*ns)]).reshape([nt, nf, ns, ny, nx])
+        outimage.data.values = \
+            asarray([convolve2d(imarr[unravel_index(i, shape=shape3d)])
+                for i in range(nt*nf*ns)]).reshape([nt, nf, ns, ny, nx])
 
         # return the output image
         if inplace is False:
             return outimage
 
-    def convolve_gauss(self, x0=0., y0=0., majsize=1., minsize=None, pa=0., scale=1., angunit="uas", inplace=False):
+    def convolve_gauss(self, x0=0., y0=0., majsize=1., minsize=None, pa=0., \
+                       scale=1., angunit="uas", inplace=False):
         """
         Gaussian Convolution.
 
@@ -1372,9 +1379,9 @@ class Image(object):
         fref =  hdu0.header["CRVAL3"]
         fdel =  hdu0.header["CDELT3"]
         ifref = hdu0.header["CRPIX3"] - 1
-        funit = hdu0.header["CUNIT3"]
+#        funit = hdu0.header["CUNIT3"]
         # freq = CRVAL3 + CDELT3*(np.arange(NAXIS3) - CRPIX3 + 1)
-        # freq = fref + fdel*(arange(nfreq) - ifref)
+        freq = fref + fdel*(arange(nfreq) - ifref)
 
         # stokes axis
         ns = hdu0.header["NAXIS4"]
@@ -1395,8 +1402,8 @@ class Image(object):
             dx=dx, dy=dy, angunit="rad",
             ixref=ixref, iyref=iyref,
             mjd=mjd,
-            freq=None,   # Array freq will be created in the cls.__init__()
-            nf=nfreq, ifref=ifref, fref=fref, fdel=fdel, funit=funit,
+            freq=freq,
+#            nf=nfreq, ifref=ifref, fref=fref, fdel=fdel, funit=funit,
             ns=ns,
             source=source,
             srccoord=srccoord,
@@ -1505,6 +1512,8 @@ class Image(object):
                 It True, an existing file will be overwritten.
             idx (list):
                 Index for (MJD, FREQ)
+                Only the self.data slice for specific time and frequency
+                passed in idx are saved in a FITS file!
         Returns:
             HDUList object if outfits is None
         '''
@@ -1514,7 +1523,16 @@ class Image(object):
         # Get the number of stokes parameters
         ns = self.data.shape[2]
 
-        # Get the Image Array
+        # Get the number of frequencies
+        nf = self.data.shape[1]
+
+        # Get the number of times
+        nt = self.data.shape[0]
+
+        #
+        # Get a slice of the Image Array for the given
+        # idx = (index_of_time, index_of_frequency)
+        #
         if len(idx) != 2:
             raise ValueError(
                 "idx must be a two dimensional index for (mjd, freq)")
@@ -1522,13 +1540,26 @@ class Image(object):
             imarr = self.data.data[idx]
             imjd, ifreq = idx
 
+        #
+        # Get reference frequency fref and frequency increment
+        # from the frequency array freq according to the formula
+        # freq = fref + fdel*(arange(nfreq) - ifref)
+        #
+        freq = self.data.freq.data
+        # nfreq = len(freq)
+        # fref = freq[0]
+        # fdel = (freq[1] - freq[0]) if nfreq > 1 else 1e9
+        # ifref = 1
+
+        #
         # Create HDUs
+        #
         #   Some conversion factor(s)
         rad2deg = conv("rad", "deg")
 
         hdulist = []
 
-        hdu = PrimaryHDU(imarr[ipol])
+        hdu = PrimaryHDU(imarr)
 
         # set header
         hdu.header.set("OBJECT", self.meta["source"].val)
@@ -1547,11 +1578,14 @@ class Image(object):
         #hdu.header.set("CUNIT2", self.meta["y"].unit)
         hdu.header.set("CUNIT2", "deg")
 
-        hdu.header.set("CTYPE3", "FREQ    ")
-        hdu.header.set("CRVAL3", self.meta["fref"].val)
-        hdu.header.set("CDELT3", self.meta["fdel"].val)
-        hdu.header.set("CRPIX3", self.meta["ifref"].val+1)
-        hdu.header.set("CUNIT3", self.meta["funit"].val)
+        #
+        # ONLY 1 frequency is saved
+        #
+#        hdu.header.set("CTYPE3", "FREQ    ")
+#        hdu.header.set("CRVAL3", freq[ifreq])
+#        hdu.header.set("CDELT3", 1e9)
+#        hdu.header.set("CRPIX3", 1.0)
+#        hdu.header.set("CUNIT3", 'Hz      ')
 
         hdu.header.set("CTYPE4", "STOKES  ")
         hdu.header.set("CRVAL4", 1.0)
@@ -1565,7 +1599,7 @@ class Image(object):
         hdu.header.set("MJD", self.data["mjd"].data[imjd])
         hdu.header.set("TELESCOP", self.meta["instrument"].val)
         hdu.header.set("BUNIT", "JY/PIXEL")
-        hdu.header.set("STOKES", stokes)
+#        hdu.header.set("STOKES", stokes)
 
         # appended to HDUList
         hdulist.append(hdu)
