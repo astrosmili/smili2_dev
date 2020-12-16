@@ -1300,8 +1300,14 @@ class Image(object):
             instrument=instrument
         )
 
-        for i in range(ns):
-            outimage.data[0, 0, i] = hdulist[i].data.copy()
+        #
+        # Copy data from the fits hdu to the Image class instance
+        #
+        # outimage dims=["mjd", "freq", "stokes", "y", "x"]
+        # fits hdu dims=["stokes", "freq", "y", "x"]
+        #
+        for istk in range(ns):
+            outimage.data[0, 0, istk] = hdulist[istk].data.copy()
 
         if isfile:
             hdulist.close()
@@ -1369,11 +1375,6 @@ class Image(object):
         dy = abs(deg2rad(hdu0.header["CDELT2"]))
         iyref = hdu0.header["CRPIX2"] - 1
 
-        # time axis 
-        isot = hdu0.header["DATE-OBS"]         # In the ISO time format
-        tim = Time(isot, format='isot', scale='utc') # An astropy.time object
-        mjd = [tim.mjd]                              # Modified Julian Date
-
         # frequency
         nfreq = hdu0.header["NAXIS3"]
         fref =  hdu0.header["CRVAL3"]
@@ -1384,11 +1385,16 @@ class Image(object):
         freq = fref + fdel*(arange(nfreq) - ifref)
 
         # stokes axis
-        ns = hdu0.header["NAXIS4"]
+        nstk = hdu0.header["NAXIS4"]
         #sref =  hdu0.header["CRVAL4"]
         #sdel =  hdu0.header["CDELT4"]
         #isref = hdu0.header["CRPIX4"] - 1
         #sunit = hdu0.header["CUNIT4"]
+
+        # time axis 
+        isot = hdu0.header["DATE-OBS"]         # In the ISO time format
+        tim = Time(isot, format='isot', scale='utc') # An astropy.time object
+        mjd = [tim.mjd]                              # Modified Julian Date
 
         # source
         source = hdu0.header["OBJECT"]
@@ -1397,29 +1403,36 @@ class Image(object):
         # telescope
         instrument = hdu0.header["TELESCOP"]
 
-        outimage = cls(
+        img = cls(
             nx=nx, ny=ny,
             dx=dx, dy=dy, angunit="rad",
             ixref=ixref, iyref=iyref,
             mjd=mjd,
             freq=freq,
-#            nf=nfreq, ifref=ifref, fref=fref, fdel=fdel, funit=funit,
-            ns=ns,
+            ns=nstk,
             source=source,
             srccoord=srccoord,
             instrument=instrument
         )
 
-        for i in range(ns):
-            outimage.data[0, 0, i] = hdulist[i].data[0,0].copy()
+        #
+        # Copy data from the fits hdu to the Image class instance img
+        #
+        # img dims=["mjd", "freq", "stokes", "y", "x"]
+        # hdu dims=["stokes", "freq", "y", "x"]
+        #
+        imjd = 0 # CASA fits files have no time dimension, only one time    
+        for istk in range(nstk):
+            for ifrq in range(nfreq):
+                img.data[imjd,ifrq,istk,:,:] = hdu0.data[istk,ifrq,:,:].copy()
 
         if isfile:
             hdulist.close()
 
         # update angunit
-        outimage.auto_angunit()
+        img.auto_angunit()
 
-        return outimage
+        return img
 
     
 
@@ -1501,7 +1514,7 @@ class Image(object):
 
 
 
-    def to_fits_casa(self, outfits=None, overwrite=True, idx=(0, 0)):
+    def to_fits_casa(self, outfits=None, overwrite=True, imjd=0):
         '''
         Save the image(s) to the image FITS file or HDUList in the CASA format
         Args:
@@ -1510,10 +1523,10 @@ class Image(object):
                 returned.
             overwrite (boolean):
                 It True, an existing file will be overwritten.
-            idx (list):
-                Index for (MJD, FREQ)
-                Only the self.data slice for specific time and frequency
-                passed in idx are saved in a FITS file!
+            imjd (int):
+                Index for MJD
+                Only a self.data.data slice for specific time 'pixel'
+                passed in imjd is saved in a FITS file
         Returns:
             HDUList object if outfits is None
         '''
@@ -1531,14 +1544,9 @@ class Image(object):
 
         #
         # Get a slice of the Image Array for the given
-        # idx = (index_of_time, index_of_frequency)
+        # imjd = (index_of_time, index_of_frequency)
         #
-        if len(idx) != 2:
-            raise ValueError(
-                "idx must be a two dimensional index for (mjd, freq)")
-        else:
-            imarr = self.data.data[idx]
-            imjd, ifreq = idx
+        imarr = self.data.data[imjd]
 
         #
         # Get reference frequency fref and frequency increment
@@ -1546,10 +1554,10 @@ class Image(object):
         # freq = fref + fdel*(arange(nfreq) - ifref)
         #
         freq = self.data.freq.data
-        # nfreq = len(freq)
-        # fref = freq[0]
-        # fdel = (freq[1] - freq[0]) if nfreq > 1 else 1e9
-        # ifref = 1
+        nfreq = len(freq)
+        fref = freq[0]
+        fdel = (freq[1] - freq[0]) if nfreq > 1 else 1e9
+        ifref = 1
 
         #
         # Create HDUs
@@ -1578,14 +1586,11 @@ class Image(object):
         #hdu.header.set("CUNIT2", self.meta["y"].unit)
         hdu.header.set("CUNIT2", "deg")
 
-        #
-        # ONLY 1 frequency is saved
-        #
-#        hdu.header.set("CTYPE3", "FREQ    ")
-#        hdu.header.set("CRVAL3", freq[ifreq])
-#        hdu.header.set("CDELT3", 1e9)
-#        hdu.header.set("CRPIX3", 1.0)
-#        hdu.header.set("CUNIT3", 'Hz      ')
+        hdu.header.set("CTYPE3", "FREQ    ")
+        hdu.header.set("CRVAL3", fref)
+        hdu.header.set("CDELT3", fdel)
+        hdu.header.set("CRPIX3", float(ifref))
+        hdu.header.set("CUNIT3", 'Hz      ')
 
         hdu.header.set("CTYPE4", "STOKES  ")
         hdu.header.set("CRVAL4", 1.0)
@@ -1595,7 +1600,7 @@ class Image(object):
 
         hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
         hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
-        hdu.header.set("FREQ", self.data["freq"].data[ifreq])
+        hdu.header.set("FREQ", self.data["freq"].data[ifref-1])
         hdu.header.set("MJD", self.data["mjd"].data[imjd])
         hdu.header.set("TELESCOP", self.meta["instrument"].val)
         hdu.header.set("BUNIT", "JY/PIXEL")
