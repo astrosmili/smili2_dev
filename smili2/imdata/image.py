@@ -1003,6 +1003,7 @@ class Image(object):
                cmap="afmhot",
                idx=(0, 0, 0),
                interpolation="bilinear",
+               title=None,
                **imshow_args):
         '''
         Plot the image.
@@ -1042,7 +1043,8 @@ class Image(object):
           index(integer):
           **imshow_args: Args will be input in matplotlib.pyplot.imshow
         '''
-        from matplotlib.pyplot import imshow, axis
+        import matplotlib.pyplot as plt
+        #from matplotlib.pyplot import imshow, axis,
         from matplotlib.colors import LogNorm, PowerNorm
         from numpy import where, abs, isnan
 
@@ -1080,12 +1082,19 @@ class Image(object):
                 "Invalid scale parameters. Available: 'linear', 'log', 'gamma'")
         imarr[isnan(imarr)] = 0
 
-        im = imshow(
+        fig = plt.figure()
+        im = plt.imshow(
             imarr, origin="lower", extent=imextent, vmin=vmin, vmax=vmax,
             cmap=cmap, interpolation=interpolation, norm=norm,
             **imshow_args
         )
 
+        if isinstance(title, str):
+            fig.suptitle(title)
+        # fig.tight_layout()
+        # fig.subplots_adjust(bottom=0.05, top=0.94)
+        # fig.subplots_adjust(top=0.92)
+        
         # Axis Label
         if axislabel:
             self.plot_xylabel()
@@ -1155,7 +1164,8 @@ class Image(object):
         ax = gca()
 
         # center
-        xedge, yedge = ax.transData.inverted().transform(ax.transAxes.transform((x0, y0)))
+        xedge, yedge = ax.transData.inverted().transform( \
+                            ax.transAxes.transform((x0, y0)))
         xcen = xedge - offset
         ycen = yedge + offset
 
@@ -1173,7 +1183,8 @@ class Image(object):
         if boxec is not None:
             plot(xb, yb, lw, color=boxec, zorder=zorder)
 
-    def plot_scalebar(self, x, y, length, ha="center", color="white", lw=1, **plotargs):
+    def plot_scalebar(self, x, y, length, ha="center", color="white", lw=1, \
+                      **plotargs):
         '''
         Plot a scale bar
 
@@ -1543,10 +1554,14 @@ class Image(object):
         nt = self.data.shape[0]
 
         #
-        # Get a slice of the Image Array for the given
-        # imjd = (index_of_time, index_of_frequency)
+        # img dims=["mjd", "freq", "stokes", "y", "x"]
+        # hdu dims=["stokes", "freq", "y", "x"]
         #
-        imarr = self.data.data[imjd]
+        # Get a slice of the Image Array for the given imjd,
+        # swapping the axes from [freq, stokes, :, :] to [stokes, freq, :, :]
+        # to conform with the CASA HDU standard. 
+        #
+        imarr = self.data.data[imjd].swapaxes(0, 1) # Change 
 
         #
         # Get reference frequency fref and frequency increment
