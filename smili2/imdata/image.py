@@ -1373,18 +1373,34 @@ class Image(object):
         
         # for k, v in hdu0.header.items():
         #     pass
-            
+        
+        eqx = hdu0.header["EQUINOX"]
+        
+        print("Equinox = %f" % eqx) 
+
         # ra axis
-        xdeg = hdu0.header["OBSRA"]
+        if 'OBSRA' in hdu0.header:
+            xdeg = hdu0.header["OBSRA"]
+        else:
+            xdeg = hdu0.header["CRVAL1"]
         nx = hdu0.header["NAXIS1"]
         dx = abs(deg2rad(hdu0.header["CDELT1"]))
         ixref = hdu0.header["CRPIX1"] - 1
+        ra_prj = hdu0.header["CTYPE1"]
+        if ra_prj != 'RA---SIN':
+            print("Warning: Projection CTYPE1='%s' is not RA---SIN." % ra_prj)
 
         # dec axis
-        ydeg = hdu0.header["OBSDEC"]
+        if 'OBSDEC' in hdu0.header:
+            ydeg = hdu0.header["OBSDEC"]
+        else:
+            ydeg = hdu0.header["CRVAL2"]
         ny = hdu0.header["NAXIS2"]
         dy = abs(deg2rad(hdu0.header["CDELT2"]))
         iyref = hdu0.header["CRPIX2"] - 1
+        dec_prj = hdu0.header["CTYPE2"]
+        if dec_prj != 'DEC--SIN':
+            print("Warning: Projection CTYPE1='%s' is not DEC--SIN." % dec_prj)
 
         # frequency
         nfreq = hdu0.header["NAXIS3"]
@@ -1429,7 +1445,7 @@ class Image(object):
         #
         # Copy data from the fits hdu to the Image class instance img
         #
-        # img dims=["mjd", "freq", "stokes", "y", "x"]
+        # img dims=["mjd",    "freq", "stokes", "y", "x"]
         # hdu dims=["stokes", "freq", "y", "x"]
         #
         imjd = 0 # CASA fits files have no time dimension, only one time    
@@ -1542,6 +1558,7 @@ class Image(object):
             HDUList object if outfits is None
         '''
         from astropy.io.fits import PrimaryHDU, ImageHDU, HDUList
+        from astropy.time import Time
         from ..util.units import conv
 
         # Get the number of stokes parameters
@@ -1616,7 +1633,14 @@ class Image(object):
         hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
         hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
         hdu.header.set("FREQ", self.data["freq"].data[ifref-1])
-        hdu.header.set("MJD", self.data["mjd"].data[imjd])
+
+        mjd = self.data["mjd"].data[imjd]
+        tim = Time(mjd, format='mjd', scale='utc') # Time object
+        dt = tim.datetime64 # Same as tim.isot, but higher precision
+        isot = str(dt)
+        hdu.header.set("DATE-OBS", isot)
+        hdu.header.set("MJD", mjd)
+
         hdu.header.set("TELESCOP", self.meta["instrument"].val)
         hdu.header.set("BUNIT", "JY/PIXEL")
 #        hdu.header.set("STOKES", stokes)
