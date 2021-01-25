@@ -34,6 +34,7 @@ class Image(object):
                  source=None,
                  srccoord=None,
                  instrument=None,
+                 imdtype=None,
                  **args):
         """
         The Class to handle five dimensional images
@@ -64,7 +65,7 @@ class Image(object):
             meta (util.metadata.MetaData): Meta data
             angunit (str): Angular Unit
         """
-        from numpy import float64, int32, abs, isscalar, arange
+        from numpy import float32, float64, int32, int16, abs, isscalar, arange
         from ..util.units import conv
 
         # Parse arguments
@@ -92,42 +93,7 @@ class Image(object):
             args["iyref"] = args["ny"]/2 - 0.5
         else:
             args["iyref"] = float64(iyref)
-
-
-        # nfreq, ifref, fref, fdel, funit - if present, freq param is ignored
-        # if nfreq or ifref or fref or fdel:
-        #     # nfreq
-        #     if nfreq is None:
-        #         nfreq = int32(1)
-
-        #     # ifref
-        #     if ifref is None:
-        #         args["ifref"] = int32(0)
-        #     else:
-        #         args["ifref"] = int32(ifref)
-
-        #     # fref
-        #     if fref is None:
-        #         args["fref"] = float64(230e9)
-        #     else:
-        #         args["fref"] = float64(fref)
-
-        #     # fdel
-        #     if fdel is None:
-        #         args["fdel"] = float64(1e9)
-        #     else:
-        #         args["fdel"] = float64(fdel)
-
-        #     # funit
-        #     if funit is None:
-        #         args["funit"] = 'Hz      '
-        #     else:
-        #         args["funit"] = funit
-
-        #     # freq = CRVAL + CDELT*(np.arange(NAXIS) - CRPIX + 1)
-        #     freq = fref + fdel*(arange(nfreq) - ifref)
-        # else:
-        
+       
         # freq
 #        if freq is None:
 #            freq = [230e9]
@@ -156,10 +122,18 @@ class Image(object):
         #  angunit
         self.angunit = angunit
 
-        # initialize meta data
-
-#        print('args = ', args)
+        # Image data type
+        if (imdtype is None) or (imdtype is float64):
+            self.imdtype = float64
+        elif imdtype == float32:
+            self.imdtype = float32
+        elif imdtype == int16:
+            self.imdtype = int16
+        else:
+            raise ValueError("Parameter imdtype={} is not one of "
+                "the three types: float64, float32, or int16.".format(imdtype))
         
+        # initialize meta data       
         self._init_meta()
         for key in args.keys():
             if key not in self.meta.keys():
@@ -266,7 +240,8 @@ class Image(object):
 
         # create data
         self.data = DataArray(
-            data=zeros(shape, dtype=float64),
+#            data=zeros(shape, dtype=float64),
+            data=zeros(shape, dtype=self.imdtype),
             dims=["mjd", "freq", "stokes", "y", "x"]
         )
 
@@ -1347,21 +1322,36 @@ class Image(object):
     #
     
     @classmethod
-    def load_fits_casa(cls, infits):
+    def load_fits_casa(cls, infits, imdtype=None):
         """
         Load a FITS Image in CASA's format into an imdata.Image instance.
         Args:
             infits (str or astropy.io.fits.HDUList):
                 input FITS filename or HDUList instance
+            imdtype (either of numpy types, float64, float32, or int16)
+                image data type.
         Returns:
             imdata.Image: loaded image
         """
         import astropy.io.fits as pf
         from numpy import abs, deg2rad, arange
+        from numpy import float32, float64, int32, int16
         from astropy.coordinates import SkyCoord
         from astropy.time import Time
         from ..util.units import DEG
 
+        # Image data type
+        if (imdtype is None) or (imdtype is float64):
+            imdtp = float64
+        elif imdtype == float32:
+            imdtp = float32
+        elif imdtype == int16:
+            imdtp = int16
+        else:
+            raise ValueError("Parameter imdtype={} is not one of "
+                "the three types: float64, float32, or int16.".format(imdtype))
+        
+        # FITS file: name or hdulidt
         isfile = False
         if isinstance(infits, str):
             hdulist = pf.open(infits)
@@ -1439,7 +1429,8 @@ class Image(object):
             ns=nstk,
             source=source,
             srccoord=srccoord,
-            instrument=instrument
+            instrument=instrument,
+            imdtype=imdtp
         )
 
         #
