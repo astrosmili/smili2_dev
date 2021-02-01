@@ -2,6 +2,18 @@ import matplotlib.pyplot as plt
 import smili2.imdata as imdata
 from astropy.time import Time
 import numpy as np
+import os, platform
+
+hostname = platform.node()   # Host name
+hostname = hostname.split('.')[0]
+
+
+if hostname == 'isco':
+    homed = '/data-isco/data-smili/'
+elif hostname == 'leonid2' or hostname == 'capelin':
+    homed = '/data-smili/'
+
+raise SystemExit
 
 fitsin = '/home/benkev/ALMA/RoundSpottyDisk2.fits'
 fitsout = '/home/benkev/ALMA/RoundSpottyDisk_smili.fits'
