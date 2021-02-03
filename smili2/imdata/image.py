@@ -35,6 +35,8 @@ class Image(object):
                  srccoord=None,
                  instrument=None,
                  imdtype=None,
+                 equinox=None,
+                 frame=None,
                  **args):
         """
         The Class to handle five dimensional images
@@ -59,6 +61,9 @@ class Image(object):
             srccoord (astropy.coordinates.SkyCoord):
                 Coordinates of the source. If not specified,
             instrument (str, optional): The name of instrument, telescope.
+            imdtype
+            equinox (float, optional) sky coord system equinox in years
+            frame (str, optional) sky coord reference frame
 
         Attributes:
             data (xarray.DataArray): Image data
@@ -1359,67 +1364,79 @@ class Image(object):
         elif isinstance(infits, pf.HDUList):
             hdulist = infits.copy()
 
-        hdu0 = hdulist[0]
+        hdu = hdulist[0]
         
-        # for k, v in hdu0.header.items():
+        # for k, v in hdu.header.items():
         #     pass
         
-        eqx = hdu0.header["EQUINOX"]
+        eqx = hdu.header["EQUINOX"]
         
         print("Equinox = %f" % eqx) 
 
         # ra axis
-        if 'OBSRA' in hdu0.header:
-            xdeg = hdu0.header["OBSRA"]
+        if 'OBSRA' in hdu.header:
+            xdeg = hdu.header["OBSRA"]
         else:
-            xdeg = hdu0.header["CRVAL1"]
-        nx = hdu0.header["NAXIS1"]
-        dx = abs(deg2rad(hdu0.header["CDELT1"]))
-        ixref = hdu0.header["CRPIX1"] - 1
-        ra_prj = hdu0.header["CTYPE1"]
+            xdeg = hdu.header["CRVAL1"]
+        nx = hdu.header["NAXIS1"]
+        dx = abs(deg2rad(hdu.header["CDELT1"]))
+        ixref = hdu.header["CRPIX1"] - 1
+        ra_prj = hdu.header["CTYPE1"]
         if ra_prj != 'RA---SIN':
             print("Warning: Projection CTYPE1='%s' is not RA---SIN." % ra_prj)
 
         # dec axis
-        if 'OBSDEC' in hdu0.header:
-            ydeg = hdu0.header["OBSDEC"]
+        if 'OBSDEC' in hdu.header:
+            ydeg = hdu.header["OBSDEC"]
         else:
-            ydeg = hdu0.header["CRVAL2"]
-        ny = hdu0.header["NAXIS2"]
-        dy = abs(deg2rad(hdu0.header["CDELT2"]))
-        iyref = hdu0.header["CRPIX2"] - 1
-        dec_prj = hdu0.header["CTYPE2"]
+            ydeg = hdu.header["CRVAL2"]
+        ny = hdu.header["NAXIS2"]
+        dy = abs(deg2rad(hdu.header["CDELT2"]))
+        iyref = hdu.header["CRPIX2"] - 1
+        dec_prj = hdu.header["CTYPE2"]
         if dec_prj != 'DEC--SIN':
             print("Warning: Projection CTYPE1='%s' is not DEC--SIN." % dec_prj)
 
         # frequency
-        nfreq = hdu0.header["NAXIS3"]
-        fref =  hdu0.header["CRVAL3"]
-        fdel =  hdu0.header["CDELT3"]
-        ifref = hdu0.header["CRPIX3"] - 1
-#        funit = hdu0.header["CUNIT3"]
+        nfreq = hdu.header["NAXIS3"]
+        fref =  hdu.header["CRVAL3"]
+        fdel =  hdu.header["CDELT3"]
+        ifref = hdu.header["CRPIX3"] - 1
+#        funit = hdu.header["CUNIT3"]
         # freq = CRVAL3 + CDELT3*(np.arange(NAXIS3) - CRPIX3 + 1)
         freq = fref + fdel*(arange(nfreq) - ifref)
 
         # stokes axis
-        nstk = hdu0.header["NAXIS4"]
-        #sref =  hdu0.header["CRVAL4"]
-        #sdel =  hdu0.header["CDELT4"]
-        #isref = hdu0.header["CRPIX4"] - 1
-        #sunit = hdu0.header["CUNIT4"]
+        nstk = hdu.header["NAXIS4"]
+        #sref =  hdu.header["CRVAL4"]
+        #sdel =  hdu.header["CDELT4"]
+        #isref = hdu.header["CRPIX4"] - 1
+        #sunit = hdu.header["CUNIT4"]
 
         # time axis 
-        isot = hdu0.header["DATE-OBS"]         # In the ISO time format
+        isot = hdu.header["DATE-OBS"]         # In the ISO time format
         tim = Time(isot, format='isot', scale='utc') # An astropy.time object
         mjd = [tim.mjd]                              # Modified Julian Date
 
         # source
-        source = hdu0.header["OBJECT"]
+        source = hdu.header["OBJECT"]
         srccoord = SkyCoord(ra=xdeg*DEG, dec=ydeg*DEG)
 
         # telescope
-        instrument = hdu0.header["TELESCOP"]
+        instrument = hdu.header["TELESCOP"]
 
+        # Celestial coordinate reference frame
+        if 'RADESYS' in hdu.header:
+            frame = hdu.header['RADESYS']
+        else:
+            frame = None
+        
+        # Equinox for the celestial coordinate reference frame
+        if 'EQUINOX' in hdu.header:
+            equinox = hdu.header['EQUINOX']
+        else:
+            equinox = None
+        
         img = cls(
             nx=nx, ny=ny,
             dx=dx, dy=dy, angunit="rad",
@@ -1430,8 +1447,9 @@ class Image(object):
             source=source,
             srccoord=srccoord,
             instrument=instrument,
-            imdtype=imdtp
-        )
+            imdtype=imdtp,
+            equinox,
+            frame)
 
         #
         # Copy data from the fits hdu to the Image class instance img
@@ -1442,7 +1460,7 @@ class Image(object):
         imjd = 0 # CASA fits files have no time dimension, only one time    
         for istk in range(nstk):
             for ifrq in range(nfreq):
-                img.data[imjd,ifrq,istk,:,:] = hdu0.data[istk,ifrq,:,:].copy()
+                img.data[imjd,ifrq,istk,:,:] = hdu.data[istk,ifrq,:,:].copy()
 
         if isfile:
             hdulist.close()
@@ -1635,6 +1653,12 @@ class Image(object):
         hdu.header.set("TELESCOP", self.meta["instrument"].val)
         hdu.header.set("BUNIT", "JY/PIXEL")
 #        hdu.header.set("STOKES", stokes)
+
+        if self.meta['frame']:
+            hdu.header.set('RADESYS', self.meta['frame'].val)
+
+        if self.meta['equinox']:
+            hdu.header.set('EQUINOX', self.meta['equinox'].val)
 
         # appended to HDUList
         hdulist.append(hdu)
