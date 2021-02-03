@@ -25,7 +25,9 @@ class UVData(object):
 
     # complex visibilities
     vis = None
+    # bi-spectram
     bs = None
+    # closure amplitudes
     ca = None
 
     # stokes/frequency independent antenna-based information
@@ -47,7 +49,7 @@ class UVData(object):
     def set_array(self, array):
         from ...array import Array
         if not isinstance(array, Array):
-            raise(ValueError())
+            raise ValueError()
         self.array = array
 
     def set_source(self, source):
@@ -55,7 +57,7 @@ class UVData(object):
         '''
         from ...source import Source
         if not isinstance(source, Source):
-            raise(ValueError())
+            raise ValueError()
         self.source = source
 
     def set_freq(self, freq):
@@ -63,8 +65,18 @@ class UVData(object):
         '''
         from ...freq import Freq
         if not isinstance(freq, Freq):
-            raise(ValueError())
+            raise ValueError()
         self.freq = freq
+
+    def set_freq2vis(self):
+        if self.freq is None:
+            raise ValueError("Frequency data is not set.")
+
+        if self.vis is None:
+            raise ValueError("Visibility data is not set")
+
+        self.vis["freq"] = (["if", "ch"], self.freq.get_freqarr())
+        self.vis["chbw"] = (["if"], self.freq.table["ch_bw"].values)
 
     def init_vis(self, utc, dutc=None):
         '''
@@ -137,15 +149,15 @@ class UVData(object):
                     antid2=("data", [antid2 for i in range(Nutc)]),
                     flag=(["stokes", "if", "ch", "data"], ones(
                         [Nstokes, Nif, Nch, Nutc], dtype="int32")),
-                    sigma=(["stokes", "if", "ch", "data"], zeros(
-                        [Nstokes, Nif, Nch, Nutc], dtype="float64")),
-                    stokes=(["stokes"], stokes),
-                    freq=(["if", "ch"], self.freq.get_freqarr()),
-                    chbw=(["if"], self.freq.table["ch_bw"].values)
+                    sigma=(["stokes", "if", "ch", "data"],
+                           zeros([Nstokes, Nif, Nch, Nutc], dtype="float64")),
+                    stokes=(["stokes"], stokes)
                 )
             )
             vis_list.append(vis_tmp)
         self.vis = concat(vis_list, dim="data")
+
+        self.set_freq2vis()
 
         self.flags["recalc_antable"] = True
         self.flags["recalc_uvw_sec"] = True
@@ -553,6 +565,21 @@ class UVData(object):
         # return
         if not inplace:
             return outuvd
+
+    @classmethod
+    def load_uvfits(cls, uvfits, printlevel=0):
+        """
+        Load an uvfits file. Currently, this function can read only single-source,
+        single-frequency-setup, single-array data correctly.
+
+        Args:
+            uvfits (string or pyfits.HDUList object): input uvfits data
+            printlevel (integer): print some notes. 0: silient 3: maximum level
+        Returns:
+            uvdata.UVData object
+        """
+        from .io.uvfits import uvfits2UVData
+        return uvfits2UVData(uvfits=uvfits, printlevel=printlevel)
 
 
 def _compute_uvw_sec(gst, ra, dec, x1, y1, z1, x2, y2, z2):

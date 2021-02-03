@@ -7,3 +7,4 @@ The module includes following submodules.
 __author__ = "Smili Developper Team"
 
 from .uvdata import UVData
+from .uvdata.io.uvfits import uvfits2UVData as load_uvfits
