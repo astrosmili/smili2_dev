@@ -2,9 +2,16 @@ import matplotlib.pyplot as plt
 import smili2.imdata as imdata
 from astropy.time import Time
 import numpy as np
+from alma_util import workdir
 
-fitsin = '/home/benkev/ALMA/RoundSpottyDisk2.fits'
-fitsout = '/home/benkev/ALMA/RoundSpottyDisk_smili.fits'
+#
+# Make this script running universally on our several machines.
+#
+basedir = workdir() + 'ALMA/'
+
+fitsin =  basedir + 'RoundSpottyDisk2.fits'
+fitsout = basedir + 'RoundSpottyDisk_smili.fits'
+
 ttl = 'Round Spotty Disk. Freq = 46.1 GHz.'
 
 cas = imdata.load_fits_casa(fitsin, imdtype=np.float32) 
