@@ -27,6 +27,10 @@ class Array(object):
     name = "SMILI"
     table = None
 
+    def __init__(self, name="SMILI", table=None):
+        self.name = name
+        self.table = table
+
     def copy(self):
         """
         Replicate the array information to the new Array object.
@@ -105,9 +109,7 @@ class Array(object):
         table.loc[idx_tle, "elmax"] = 90.
         table.loc[idx_tle, "anttype"] = "tle"
 
-        arraydata = cls()
-        arraydata.name = name
-        arraydata.table = table
+        arraydata = cls(name=name, table=table)
 
         return arraydata
 

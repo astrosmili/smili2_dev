@@ -23,10 +23,8 @@ class UVData(object):
     # Frequency information
     freq = None
 
-    # complex visibilities
-    vis = None
-    bs = None
-    ca = None
+    # Complex Visibilities in xarray.DataArray format
+    data = None
 
     # stokes/frequency independent antenna-based information
     antable = None
@@ -47,7 +45,7 @@ class UVData(object):
     def set_array(self, array):
         from ...array import Array
         if not isinstance(array, Array):
-            raise(ValueError())
+            raise ValueError()
         self.array = array
 
     def set_source(self, source):
@@ -55,7 +53,7 @@ class UVData(object):
         '''
         from ...source import Source
         if not isinstance(source, Source):
-            raise(ValueError())
+            raise ValueError()
         self.source = source
 
     def set_freq(self, freq):
@@ -63,8 +61,18 @@ class UVData(object):
         '''
         from ...freq import Freq
         if not isinstance(freq, Freq):
-            raise(ValueError())
+            raise ValueError()
         self.freq = freq
+
+    def set_freq2vis(self):
+        if self.freq is None:
+            raise ValueError("Frequency data is not set.")
+
+        if self.data is None:
+            raise ValueError("Visibility data is not set")
+
+        self.data["freq"] = (["if", "ch"], self.freq.get_freqarr())
+        self.data["chbw"] = (["if"], self.freq.table["ch_bw"].values)
 
     def init_vis(self, utc, dutc=None):
         '''
@@ -137,15 +145,15 @@ class UVData(object):
                     antid2=("data", [antid2 for i in range(Nutc)]),
                     flag=(["stokes", "if", "ch", "data"], ones(
                         [Nstokes, Nif, Nch, Nutc], dtype="int32")),
-                    sigma=(["stokes", "if", "ch", "data"], zeros(
-                        [Nstokes, Nif, Nch, Nutc], dtype="float64")),
-                    stokes=(["stokes"], stokes),
-                    freq=(["if", "ch"], self.freq.get_freqarr()),
-                    chbw=(["if"], self.freq.table["ch_bw"].values)
+                    sigma=(["stokes", "if", "ch", "data"],
+                           zeros([Nstokes, Nif, Nch, Nutc], dtype="float64")),
+                    stokes=(["stokes"], stokes)
                 )
             )
             vis_list.append(vis_tmp)
-        self.vis = concat(vis_list, dim="data")
+        self.data = concat(vis_list, dim="data")
+
+        self.set_freq2vis()
 
         self.flags["recalc_antable"] = True
         self.flags["recalc_uvw_sec"] = True
@@ -157,9 +165,9 @@ class UVData(object):
         from smili2.uvdata.uvdata.antable import ANTable
 
         mjd_unq, mjdidx_antable = unique(
-            self.vis.mjd.values, return_inverse=True)
+            self.data.mjd.values, return_inverse=True)
         utc = Time(mjd_unq, format="mjd", scale="utc")
-        self.vis.coords["mjdidx_antab"] = (["data"], mjdidx_antable)
+        self.data.coords["mjdidx_antab"] = (["data"], mjdidx_antable)
 
         if self.array is None:
             raise ValueError(
@@ -197,8 +205,8 @@ class UVData(object):
         if self.freq is not None:
             outdata.freq = self.freq.copy()
 
-        if self.vis is not None:
-            outdata.vis = self.vis.copy()
+        if self.data is not None:
+            outdata.vis = self.data.copy()
 
         if self.antable is not None:
             outdata.antable = self.antable.copy()
@@ -235,8 +243,8 @@ class UVData(object):
         # Antenna-based information
         vis_list = []
         for antid in antids:
-            idx = self.vis.antid1 == antid
-            vis_tmp = self.vis.loc[:, :, :, idx]
+            idx = self.data.antid1 == antid
+            vis_tmp = self.data.loc[:, :, :, idx]
             if vis_tmp.shape[-1] == 0:
                 continue
             antab_tmp = self.antable.query(
@@ -248,12 +256,12 @@ class UVData(object):
                 vis_tmp.coords[column+"1"] = (
                     "data", antab_tmp.loc[vis_tmp.coords["mjdidx_antab"].values, column].values)
             vis_list.append(vis_tmp)
-        self.vis = concat(vis_list, dim="data")
+        self.data = concat(vis_list, dim="data")
 
         vis_list = []
         for antid in antids:
-            idx = self.vis.antid2 == antid
-            vis_tmp = self.vis.loc[:, :, :, idx]
+            idx = self.data.antid2 == antid
+            vis_tmp = self.data.loc[:, :, :, idx]
             if vis_tmp.shape[-1] == 0:
                 continue
             antab_tmp = self.antable.query(
@@ -262,7 +270,7 @@ class UVData(object):
                 vis_tmp.coords[column+"2"] = (
                     "data", antab_tmp.loc[vis_tmp.coords["mjdidx_antab"].values, column].values)
             vis_list.append(vis_tmp)
-        self.vis = concat(vis_list, dim="data")
+        self.data = concat(vis_list, dim="data")
 
     def calc_uvw(self, recalc_uvw_sec=False, overwrite_antable=False):
         # recompute uvw_sec if needed
@@ -270,9 +278,9 @@ class UVData(object):
             self.calc_uvw_sec(overwrite_antable=overwrite_antable)
 
         # scale frequency
-        self.vis.coords["u"] = self.vis["freq"] * self.vis["usec"]
-        self.vis.coords["v"] = self.vis["freq"] * self.vis["vsec"]
-        self.vis.coords["w"] = self.vis["freq"] * self.vis["wsec"]
+        self.data.coords["u"] = self.data["freq"] * self.data["usec"]
+        self.data.coords["v"] = self.data["freq"] * self.data["vsec"]
+        self.data.coords["w"] = self.data["freq"] * self.data["wsec"]
 
         # modify flags
         self.flags["recalc_uvw"] = False
@@ -292,7 +300,7 @@ class UVData(object):
         iscolumn = True
         mandatory_columns = "gst,ra,dec,x1,y1,z1,x2,y2,z2".split(",")
         for column in mandatory_columns:
-            iscolumn &= column in self.vis.coords
+            iscolumn &= column in self.data.coords
         if not iscolumn:
             self.copy_from_antab_to_vis(columns="gst,ra,dec,x,y,z".split(
                 ","), overwrite_antable=overwrite_antable)
@@ -302,21 +310,21 @@ class UVData(object):
         h2rad = conv(Unit("hourangle"), Unit("rad"))
 
         usec, vsec, wsec = _compute_uvw_sec(
-            gst=self.vis.coords["gst"].values*h2rad,
-            ra=self.vis.coords["ra"].values*deg2rad,
-            dec=self.vis.coords["dec"].values*deg2rad,
-            x1=self.vis.coords["x1"].values,
-            y1=self.vis.coords["y1"].values,
-            z1=self.vis.coords["z1"].values,
-            x2=self.vis.coords["x2"].values,
-            y2=self.vis.coords["y2"].values,
-            z2=self.vis.coords["z2"].values,
+            gst=self.data.coords["gst"].values*h2rad,
+            ra=self.data.coords["ra"].values*deg2rad,
+            dec=self.data.coords["dec"].values*deg2rad,
+            x1=self.data.coords["x1"].values,
+            y1=self.data.coords["y1"].values,
+            z1=self.data.coords["z1"].values,
+            x2=self.data.coords["x2"].values,
+            y2=self.data.coords["y2"].values,
+            z2=self.data.coords["z2"].values,
         )
 
         # add results
-        self.vis.coords["usec"] = ("data", usec)
-        self.vis.coords["vsec"] = ("data", vsec)
-        self.vis.coords["wsec"] = ("data", wsec)
+        self.data.coords["usec"] = ("data", usec)
+        self.data.coords["vsec"] = ("data", vsec)
+        self.data.coords["wsec"] = ("data", wsec)
 
         # modify flags
         self.flags["recalc_uvw_sec"] = False
@@ -329,7 +337,7 @@ class UVData(object):
         from astropy.time import Time
         from numpy import unique
 
-        mjd = self.vis.mjd.values
+        mjd = self.data.mjd.values
 
         # compute gst for the non-redundant set of MJD,
         # and then bring it back to the original DataArray
@@ -337,7 +345,7 @@ class UVData(object):
         utc_unq = Time(mjd_unq, format="mjd", scale="utc")
         gst_unq = utc_unq.sidereal_time(
             "apparent", "greenwich", "IAU2006A").hour
-        self.vis.coords["gst"] = ("data", gst_unq[mjd_unq_invidx])
+        self.data.coords["gst"] = ("data", gst_unq[mjd_unq_invidx])
 
     def calc_sigma(self, inplace=True):
         from numpy import sqrt
@@ -429,14 +437,14 @@ class UVData(object):
         for antid in antids:
             elmin, elmax = outdata.array.table.loc[antid, ["elmin", "elmax"]]
             # antid1
-            idx = self.vis.coords["el1"] < elmin
-            idx |= self.vis.coords["el1"] > elmax
-            idx &= self.vis.coords["antid1"] == antid
+            idx = self.data.coords["el1"] < elmin
+            idx |= self.data.coords["el1"] > elmax
+            idx &= self.data.coords["antid1"] == antid
             outdata.vis.flag[:, :, :, idx] = -1
             # antid2
-            idx = self.vis.coords["el2"] < elmin
-            idx |= self.vis.coords["el2"] > elmax
-            idx &= self.vis.coords["antid2"] == antid
+            idx = self.data.coords["el2"] < elmin
+            idx |= self.data.coords["el2"] > elmax
+            idx &= self.data.coords["antid2"] == antid
             outdata.vis.flag[:, :, :, idx] = -1
 
         if apply_flag:
@@ -492,7 +500,7 @@ class UVData(object):
         nim = ni_t*ni_f
 
         # get the data dimension
-        nd_s, nif, nch, ndata = self.vis.shape
+        nd_s, nif, nch, ndata = self.data.shape
 
         # the number of images
         if nim != 1:
@@ -500,8 +508,8 @@ class UVData(object):
                 "Currently this function works for the two dimensional image")
 
         # get uv coordinates
-        u = self.vis.u.data.flatten()
-        v = self.vis.v.data.flatten()
+        u = self.data.u.data.flatten()
+        v = self.data.v.data.flatten()
         ntotal = len(u)
 
         # initialize NFFT function
@@ -553,6 +561,21 @@ class UVData(object):
         # return
         if not inplace:
             return outuvd
+
+    @classmethod
+    def load_uvfits(cls, uvfits, printlevel=0):
+        """
+        Load an uvfits file. Currently, this function can read only single-source,
+        single-frequency-setup, single-array data correctly.
+
+        Args:
+            uvfits (string or pyfits.HDUList object): input uvfits data
+            printlevel (integer): print some notes. 0: silient 3: maximum level
+        Returns:
+            uvdata.UVData object
+        """
+        from .io.uvfits import uvfits2UVData
+        return uvfits2UVData(uvfits=uvfits, printlevel=printlevel)
 
 
 def _compute_uvw_sec(gst, ra, dec, x1, y1, z1, x2, y2, z2):

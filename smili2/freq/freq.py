@@ -102,7 +102,7 @@ class Freq(object):
 
         return outdata
 
-    def to_text(self, filename):
+    def to_text(self, filename=None):
         """
         Output the frequency information to an ascii file in the SMILI format.
 
@@ -111,7 +111,6 @@ class Freq(object):
         """
         Nch = self.Nch
 
-        f = open(filename, "w")
         header = "# SMILI Frequency Table\n"
         header += "#\n"
         header += "#   Metadata:\n"
@@ -126,9 +125,13 @@ class Freq(object):
             header += "#     %8s %8s %4s %s\n" % (c1, c2, c3, c4)
         header += "#\n"
 
-        f.write(header)
-        self.table.to_string(f, float_format="%g", index=False)
-        f.close()
+        if filename is not None:
+            f = open(filename, "w")
+            f.write(header)
+            self.table.to_string(f, float_format="%g", index=False)
+            f.close()
+        else:
+            return filename
 
     @classmethod
     def load_text(cls, filename):
