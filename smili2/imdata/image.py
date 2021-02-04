@@ -35,8 +35,8 @@ class Image(object):
                  srccoord=None,
                  instrument=None,
                  imdtype=None,
-                 equinox=None,
                  frame=None,
+                 equinox=None,
                  **args):
         """
         The Class to handle five dimensional images
@@ -52,24 +52,22 @@ class Image(object):
             mjd (list, optional): [description]. Defaults to [0.].
             freq (list, optional): [description]. Defaults to [230e9].
             ns (int, optional): [description]. Defaults to 1.
-            # nfreq (int, optional),
-            # ifref (int, optional), 
-            # fref(float, optional), 
-            # fdel(float, optional)
-            # funit(str, optional): CRPIX, CRVAL, CDELT, and CUNIT for freq.
+            nf (int, optional): [description]. Defaults to 1.
             source (str): The source name.
             srccoord (astropy.coordinates.SkyCoord):
                 Coordinates of the source. If not specified,
             instrument (str, optional): The name of instrument, telescope.
-            imdtype
-            equinox (float, optional) sky coord system equinox in years
+            imdtype (np.float64, np.float32, or np.int16, optional): Image
+                                                                 data type
             frame (str, optional) sky coord reference frame
+            equinox (float, optional) equinox of sky coord system in years
 
         Attributes:
             data (xarray.DataArray): Image data
             meta (util.metadata.MetaData): Meta data
             angunit (str): Angular Unit
         """
+        import numpy as np
         from numpy import float32, float64, int32, int16, abs, isscalar, arange
         from ..util.units import conv
 
@@ -100,27 +98,24 @@ class Image(object):
             args["iyref"] = float64(iyref)
        
         # freq
-#        if freq is None:
-#            freq = [230e9]
-        if isscalar(freq):
-            args["nf"] = float64(freq)
-#            args["freq"] = float64(freq)
-        else:
-            args["nf"] = len(freq)
-#            args["freq"] = float64(freq[0])
+        # if isscalar(freq):
+        #     args["freq"] = np.asarray([freq], dtype=float64)
+        # else:
+        #     args["freq"] = np.asarray(freq, dtype=float64) 
+            
 
         # ns
         args["ns"] = int32(ns)
 
         # nt
         if isscalar(mjd):
-            args["nt"] = 1
+            args["nt"] = int32(1)
         else:
             args["nt"] = len(mjd)
 
         # nf
         if isscalar(freq):
-            args["nf"] = 1
+            args["nf"] = int32(1)
         else:
             args["nf"] = len(freq)
 
@@ -137,9 +132,25 @@ class Image(object):
         else:
             raise ValueError("Parameter imdtype={} is not one of "
                 "the three types: float64, float32, or int16.".format(imdtype))
+
+        # Sky coordinate reference frame
+        # Defaults to the extragalactic celestial reference system ICRS
+        if frame is None:
+            args['frame'] = 'ICRS  '
+        else:
+            args['frame'] = str(frame)
         
+        # Equinox of sky coord system in years
+        # Coordinates in the ICRS system do not have an associated equinox.
+        # Therefore, the equinox value of -1 indicates its absense. 
+        if equinox is None:
+            args['equinox'] = float64(-1.)
+        else:
+            args['equinox'] = float64(equinox)
+
         # initialize meta data       
         self._init_meta()
+
         for key in args.keys():
             if key not in self.meta.keys():
                 raise ValueError("Key '{}' is not in the meta.".format(key))
@@ -147,8 +158,6 @@ class Image(object):
                 raise ValueError("Use srccoord for the reference pixel " \
                                  "coordinates x and y.")
             self.meta[key].val = args[key]
-#            print('self.meta[key].val = args[', key, '] = ', args[key])
-            
 
         # initialize data
         self.set_source(source, srccoord)
@@ -193,23 +202,7 @@ class Image(object):
                        comment="Number of pixels in Stokes axis"),
             # Frequency
             nf=MetaRec(val=1, unit="", dtype="int32",
-                       comment="Number of pixels in Freq. axis"),
-            # freq=MetaRec(val=230e9, unit="Hz", dtype="float64",
-            #              comment="Frequency"),
-            # nf=MetaRec(val=1, unit="", dtype="int32",
-            #            comment="Number of pixels in Freq axis"),
-            # nfreq=MetaRec(val=1, unit="", dtype="int32",
-            #            comment="Number of pixels in Freq axis"),
-            # ifref=MetaRec(val=0, unit="", dtype="int32",
-            #               comment="Pixel ID of the reference pixel " \
-            #               "in Freq axis"),
-            # fref=MetaRec(val=230e9, unit="Hz", dtype="float64",
-            #              comment="Frequency at the reference pixel " \
-            #               "in Freq axis"),
-            # fdel=MetaRec(val=1e6, unit="Hz", dtype="float64",
-            #              comment="Frequency increment in Freq axis"),
-            # funit=MetaRec(val='Hz      ', unit="", dtype="float64",
-            #              comment="Frequency units from fits file header"),
+                       comment="Number of pixels in Frequency axis"),
             # Time
             nt=MetaRec(val=1, unit="", dtype="int32",
                        comment="Number of pixels in Time axis"),
@@ -221,10 +214,17 @@ class Image(object):
                          comment="Major-axis Beam Size"),
             bmin=MetaRec(val=0., unit="rad", dtype="float64",
                          comment="Minor-axis Beam Size"),
-            bpa=MetaRec(val=0., unit="rad", dtype="float64",
+            bpa=MetaRec(val=0., unit="", dtype="",
                         comment="Beam Position Angle"),
+            frame = MetaRec(val='ICRS  ', unit="", dtype="str",
+                        comment="Celestial coordinate reference frame"),
+            # Coordinates in the ICRS system do not have an associated equinox.
+            # Therefore, the equinox value of -1 indicates its absense. 
+            equinox = MetaRec(val=-1., unit="year", dtype="float64",
+                        comment="Equinox of the sky coordinate system in years")
         )
 
+        
     def init_data(self):
         '''
         Initialize the image data array. This creates an empty image with the
@@ -250,6 +250,7 @@ class Image(object):
             dims=["mjd", "freq", "stokes", "y", "x"]
         )
 
+        
     def init_stokes(self):
         '''
         Add the stokes information to the image data array.
@@ -264,6 +265,7 @@ class Image(object):
             raise ValueError("Current version of SMILI accepts only" \
                              "single or full polarization images.")
 
+        
     def init_xygrid(self):
         '''
         Add the xy coordinates (in radians) to the image data array.
@@ -281,6 +283,7 @@ class Image(object):
             # compute coordinates
             self.data[axis] = sign*dx*(arange(nx)-ixref)
 
+            
     def copy(self):
         from copy import deepcopy
 
@@ -289,6 +292,7 @@ class Image(object):
         outimage.data = deepcopy(self.data)
         outimage.angunit = deepcopy(self.angunit)
         return outimage
+
 
     def set_source(self, source="M87", srccoord=None):
         '''
@@ -312,6 +316,7 @@ class Image(object):
         if srccoord is not None:
             self.meta["x"].val = srccoord.ra.rad
             self.meta["y"].val = srccoord.dec.rad
+            
 
     def set_instrument(self, instrument="EHT"):
         """
@@ -324,6 +329,7 @@ class Image(object):
         if instrument is not None:
             self.meta["instrument"].val = instrument
 
+            
     def set_mjd(self, mjd, dmjd=None):
         """
         Set the MJD infromation for the image data array.
@@ -340,6 +346,7 @@ class Image(object):
 
         self.data["mjd"] = mjd_arr
 
+        
     def set_freq(self, freq):
         """
         Set the frequency infromation for the image data array.
@@ -356,6 +363,7 @@ class Image(object):
 
         self.data["freq"] = freq_arr
 
+        
     def set_beam(self, majsize=0., minsize=0., pa=0., scale=1., angunit=None):
         '''
         Set beam parameters into headers.
@@ -380,6 +388,7 @@ class Image(object):
         self.meta["bmin"].val = minsize * factor * scale
         self.meta["bpa"].val = deg2rad(pa)
 
+        
     def auto_angunit(self):
         from numpy import amax
         from ..util.units import Unit, DEG
@@ -394,14 +403,16 @@ class Image(object):
             else:
                 break
 
+            
     def get_xygrid(self, twodim=False, angunit=None):
         '''
         Get the xy coordinates of the image
 
         Args:
-            angunit(string): Angular unit(uas, mas, asec or arcsec, amin or arcmin, degree)
-            twodim(boolean): It True, the 2D grids will be returned. Otherwise, the 1D arrays will be returned
-
+            angunit(string): Angular unit(uas, mas, asec or arcsec, 
+                             amin or arcmin, degree)
+            twodim(boolean): It True, the 2D grids will be returned. 
+                             Otherwise, the 1D arrays will be returned
         Returns:
             x, y: x, y coordinates in the specified unit.
         '''
@@ -419,6 +430,7 @@ class Image(object):
             x, y = meshgrid(x, y)
         return x, y
 
+    
     def get_imextent(self, angunit=None):
         '''
         Get the field of view of the image for the pyplot.imshow function.
@@ -451,18 +463,20 @@ class Image(object):
 
         return asarray([xmax, xmin, ymin, ymax]) * factor
 
+    
     def get_imarray(self, fluxunit="Jy", saunit="pixel"):
         self.set_bconv(fluxunit=fluxunit, saunit=saunit)
         converted = self.data * self.data.bconv
         return converted.data.copy()
 
+    
     def get_uvgrid(self, twodim=False):
         """
         Get the uv coordinates of the image on the Fourier domain
 
         Args:
-            twodim(boolean): It True, the 2D grids will be returned. Otherwise, the 1D arrays will be returned
-
+            twodim(boolean): It True, the 2D grids will be returned. 
+                             Otherwise, the 1D arrays will be returned
         Returns:
             u, v: u, v coordinates.
         """
@@ -486,6 +500,7 @@ class Image(object):
         else:
             return ug, vg
 
+        
     def get_uvextent(self):
         """
         Get the field of view of the image on the Fourier transform
@@ -499,8 +514,10 @@ class Image(object):
         ug, vg = self.get_uvgrid()
         du_half = (ug[1] - ug[0])/2
         dv_half = (vg[1] - vg[0])/2
-        return asarray([ug[0]-du_half, ug[-1]+du_half, vg[0]-dv_half, vg[-1]+dv_half])
+        return asarray([ug[0]-du_half, ug[-1]+du_half, vg[0]-dv_half, \
+                        vg[-1]+dv_half])
 
+    
     def get_vis(self, idx=(0, 0, 0), apply_pulsefunc=True):
         """
         Get an array of visibilities computed from the image.
@@ -535,7 +552,7 @@ class Image(object):
         ug, vg = self.get_uvgrid(twodim=True)
 
         # adjust phase
-        ix_cen = nx//2 + nx % 2  # the index of the image center used in np.fft.fft2
+        ix_cen = nx//2 + nx % 2  # image center index used in np.fft.fft2
         iy_cen = ny//2 + ny % 2
         dix = ix_cen - ixref  # shift in the pixel unit
         diy = iy_cen - iyref
@@ -553,7 +570,8 @@ class Image(object):
         if idx is None:
             shape3d = (nt, nf, ns)
             vis = asarray([dofft(imarr[unravel_index(i, shape=shape3d)])
-                           for i in range(nt*nf*ns)]).reshape([nt, nf, ns, ny, nx])
+                           for i in range(nt*nf*ns)]).reshape([nt, nf, ns,
+                                                               ny, nx])
             vis[:, :, :] *= viskernel
         else:
             ndim = asarray(idx).ndim
@@ -568,6 +586,7 @@ class Image(object):
                 raise ValueError("Invalid dimension of the input index.")
         return vis
 
+    
     def get_source(self):
         """
         [summary]
@@ -585,6 +604,7 @@ class Image(object):
         skycoord = SkyCoord(ra=x, dec=y)
         return Source(name=name, skycoord=skycoord)
 
+    
     def get_beam(self, angunit=None):
         '''
         Get beam parameters.
@@ -608,6 +628,7 @@ class Image(object):
         outdic["angunit"] = angunit
         return outdic
 
+    
     def get_pulsefunc(self):
         ptype = self.meta["ptype"].val.lower()
 
@@ -623,6 +644,7 @@ class Image(object):
             raise ValueError("unknown pulse type: %s" % (ptype))
         return pulsefunc
 
+    
     def set_bconv(self, fluxunit="Jy", saunit="pixel"):
         from ..util.units import conv, Unit
         from numpy import log, pi
@@ -656,6 +678,7 @@ class Image(object):
 
             self.data["bconv"] = fluxconv/saconv
 
+            
     def add_geomodel(self, geomodel, idx=(0, 0, 0), inplace=False):
         """
         Add a specified geometric model to the image
@@ -690,6 +713,7 @@ class Image(object):
         if not inplace:
             return outimage
 
+        
     def add_gauss(self, totalflux=1., x0=0., y0=0., majsize=1., minsize=None,
                   pa=0., scale=1., angunit="uas", inplace=False):
         """
@@ -739,6 +763,7 @@ class Image(object):
         else:
             return self.add_geomodel(geomodel=geomodel, inplace=inplace)
 
+        
     #  Convolution with Geometric Models
     def convolve_geomodel(self, geomodel, inplace=False):
         """
@@ -791,6 +816,7 @@ class Image(object):
         if inplace is False:
             return outimage
 
+        
     def convolve_gauss(self, x0=0., y0=0., majsize=1., minsize=None, pa=0., \
                        scale=1., angunit="uas", inplace=False):
         """
@@ -833,7 +859,8 @@ class Image(object):
         else:
             return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
 
-    def convolve_rectangular(self, x0=0., y0=0., Lx=1., Ly=None, angunit="mas", inplace=False):
+    def convolve_rectangular(self, x0=0., y0=0., Lx=1., Ly=None, angunit="mas",
+                             inplace=False):
         """
         Convolution with a rectangular kernel
 
@@ -869,6 +896,7 @@ class Image(object):
         else:
             return self.convolve_geomodel(geomodel=geomodel, inplace=inplace)
 
+        
     #  Regrid images (in x,y direction)
     def regrid(self, template, preconv=True, order=1):
         """
@@ -965,6 +993,7 @@ class Image(object):
 
     # plotting function
 
+    
     def imshow(self,
                scale="linear",
                dyrange=100,
@@ -1063,11 +1092,10 @@ class Image(object):
         imarr[isnan(imarr)] = 0
 
         fig = plt.figure()
-        im = plt.imshow(
-            imarr, origin="lower", extent=imextent, vmin=vmin, vmax=vmax,
-            cmap=cmap, interpolation=interpolation, norm=norm,
-            **imshow_args
-        )
+        im = plt.imshow(imarr, origin="lower", extent=imextent,
+                        vmin=vmin, vmax=vmax,
+                        cmap=cmap, interpolation=interpolation, norm=norm,
+                        **imshow_args)
 
         if isinstance(title, str):
             fig.suptitle(title)
@@ -1095,6 +1123,7 @@ class Image(object):
 
         return im
 
+
     def plot_xylabel(self):
         from ..util.plot import get_angunitlabel
         from matplotlib.pyplot import xlabel, ylabel
@@ -1103,6 +1132,7 @@ class Image(object):
         angunitlabel = get_angunitlabel(angunit)
         xlabel("Relative RA (%s)" % (angunitlabel))
         ylabel("Relative Dec (%s)" % (angunitlabel))
+
 
     def plot_beam(self, boxfc=None, boxec=None, beamfc=None, beamec="white",
                   lw=1., alpha=0.5, x0=0.05, y0=0.05, boxsize=1.5, zorder=None):
@@ -1124,7 +1154,8 @@ class Image(object):
             beamfc, beamec(color formatter):
                 Face and edge colors of the beam
             lw(float, default=1): linewidth
-            alpha(float, default=0.5): transparency parameter(0 < 1) for the face color
+            alpha(float, default=0.5): transparency parameter (0 < 1)
+                                       (0 < 1) for the face color
         '''
         from ..util.units import conv
         from ..util.plot import arrays_ellipse, arrays_box
@@ -1162,6 +1193,7 @@ class Image(object):
         plot(xe, ye, lw, color=beamec, zorder=zorder)
         if boxec is not None:
             plot(xb, yb, lw, color=boxec, zorder=zorder)
+
 
     def plot_scalebar(self, x, y, length, ha="center", color="white", lw=1, \
                       **plotargs):
@@ -1334,7 +1366,8 @@ class Image(object):
             infits (str or astropy.io.fits.HDUList):
                 input FITS filename or HDUList instance
             imdtype (either of numpy types, float64, float32, or int16)
-                image data type.
+                image data type to convert to if the image in fits file is
+                different.
         Returns:
             imdata.Image: loaded image
         """
@@ -1371,7 +1404,7 @@ class Image(object):
         
         eqx = hdu.header["EQUINOX"]
         
-        print("Equinox = %f" % eqx) 
+        print("Equinox = %6.1f" % eqx) 
 
         # ra axis
         if 'OBSRA' in hdu.header:
@@ -1448,8 +1481,8 @@ class Image(object):
             srccoord=srccoord,
             instrument=instrument,
             imdtype=imdtp,
-            equinox,
-            frame)
+            equinox=equinox,
+            frame=frame)
 
         #
         # Copy data from the fits hdu to the Image class instance img
@@ -1654,10 +1687,10 @@ class Image(object):
         hdu.header.set("BUNIT", "JY/PIXEL")
 #        hdu.header.set("STOKES", stokes)
 
-        if self.meta['frame']:
+        if 'frame' in self.meta:
             hdu.header.set('RADESYS', self.meta['frame'].val)
 
-        if self.meta['equinox']:
+        if 'equinox' in self.meta:
             hdu.header.set('EQUINOX', self.meta['equinox'].val)
 
         # appended to HDUList

@@ -2,21 +2,16 @@ import matplotlib.pyplot as plt
 import smili2.imdata as imdata
 from astropy.time import Time
 import numpy as np
-import os, platform
+from alma_util import workdir
 
-hostname = platform.node()   # Host name
-hostname = hostname.split('.')[0]
+#
+# Make this script running universally on our several machines.
+#
+basedir = workdir() + 'ALMA/'
 
+fitsin =  basedir + 'RoundSpottyDisk.fits'
+fitsout = basedir + 'RoundSpottyDisk_smili.fits'
 
-if hostname == 'isco':
-    homed = '/data-isco/data-smili/'
-elif hostname == 'leonid2' or hostname == 'capelin':
-    homed = '/data-smili/'
-
-raise SystemExit
-
-fitsin = '/home/benkev/ALMA/RoundSpottyDisk2.fits'
-fitsout = '/home/benkev/ALMA/RoundSpottyDisk_smili.fits'
 ttl = 'Round Spotty Disk. Freq = 46.1 GHz.'
 
 cas = imdata.load_fits_casa(fitsin, imdtype=np.float32) 
