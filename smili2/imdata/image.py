@@ -35,7 +35,7 @@ class Image(object):
                  srccoord=None,
                  instrument=None,
                  imdtype=None,
-                 frame=None,
+                 coordsys=None,
                  equinox=None,
                  **args):
         """
@@ -59,7 +59,7 @@ class Image(object):
             instrument (str, optional): The name of instrument, telescope.
             imdtype (np.float64, np.float32, or np.int16, optional): Image
                                                                  data type
-            frame (str, optional) sky coord reference frame
+            coordsys (str, optional) sky coord reference frame
             equinox (float, optional) equinox of sky coord system in years
 
         Attributes:
@@ -135,10 +135,10 @@ class Image(object):
 
         # Sky coordinate reference frame
         # Defaults to the extragalactic celestial reference system ICRS
-        if frame is None:
-            args['frame'] = 'ICRS  '
+        if coordsys is None:
+            args['coordsys'] = 'ICRS  '
         else:
-            args['frame'] = str(frame)
+            args['coordsys'] = str(coordsys)
         
         # Equinox of sky coord system in years
         # Coordinates in the ICRS system do not have an associated equinox.
@@ -216,7 +216,7 @@ class Image(object):
                          comment="Minor-axis Beam Size"),
             bpa=MetaRec(val=0., unit="", dtype="",
                         comment="Beam Position Angle"),
-            frame = MetaRec(val='ICRS  ', unit="", dtype="str",
+            coordsys = MetaRec(val='ICRS  ', unit="", dtype="str",
                         comment="Celestial coordinate reference frame"),
             # Coordinates in the ICRS system do not have an associated equinox.
             # Therefore, the equinox value of -1 indicates its absense. 
@@ -1460,9 +1460,9 @@ class Image(object):
 
         # Celestial coordinate reference frame
         if 'RADESYS' in hdu.header:
-            frame = hdu.header['RADESYS']
+            coordsys = hdu.header['RADESYS']
         else:
-            frame = None
+            coordsys = None
         
         # Equinox for the celestial coordinate reference frame
         if 'EQUINOX' in hdu.header:
@@ -1482,7 +1482,7 @@ class Image(object):
             instrument=instrument,
             imdtype=imdtp,
             equinox=equinox,
-            frame=frame)
+            coordsys=coordsys)
 
         #
         # Copy data from the fits hdu to the Image class instance img
@@ -1687,8 +1687,8 @@ class Image(object):
         hdu.header.set("BUNIT", "JY/PIXEL")
 #        hdu.header.set("STOKES", stokes)
 
-        if 'frame' in self.meta:
-            hdu.header.set('RADESYS', self.meta['frame'].val)
+        if 'coordsys' in self.meta:
+            hdu.header.set('RADESYS', self.meta['coordsys'].val)
 
         if 'equinox' in self.meta:
             hdu.header.set('EQUINOX', self.meta['equinox'].val)
