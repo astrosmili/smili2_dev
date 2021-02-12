@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-class AntData(object):
+class SrcData(object):
     # Xarray Dataset
     ds = None
 
@@ -17,6 +17,6 @@ class AntData(object):
             Replicated data
         """
 
-        outdata = AntData(ds=self.ds.copy())
+        outdata = SrcData(ds=self.ds.copy())
 
         return outdata
