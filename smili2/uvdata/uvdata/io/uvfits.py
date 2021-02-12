@@ -1,6 +1,5 @@
 from numpy import int64
 
-
 # Dictionary for Stokes labels and their IDs in UVFITS
 stokesid2name = {
     "+1": "I",
@@ -21,58 +20,6 @@ for key in stokesid2name.keys():
     stokesname2id[stokesid2name[key]] = int64(key)
 
 
-def uvfits2UVData(uvfits, printlevel=0):
-    """
-    Load an uvfits file. Currently, this function can read only single-source,
-    single-frequency-setup, single-array data correctly.
-
-    Args:
-        uvfits (string or pyfits.HDUList object): input uvfits data
-        printlevel (integer): print some notes. 0: silient 3: maximum level
-    Returns:
-        uvdata.UVData object
-    """
-    import astropy.io.fits as pf
-    from ....uvdata import UVData
-
-    # check input files
-    if isinstance(uvfits, type("")):
-        hdulist = pf.open(uvfits)
-        closehdu = True
-    else:
-        hdulist = uvfits
-        closehdu = False
-
-    # print HDU info if requested.
-    if printlevel > 0:
-        hdulist.info()
-        print("")
-
-    # load data
-    ghdu, antab, fqtab = uvfits2HDUs(hdulist)
-    source = uvfits2Source(ghdu=ghdu)
-    freq = uvfits2Freq(ghdu=ghdu, antab=antab, fqtab=fqtab)
-    array = uvfits2Array(antab=antab)
-    vis = uvfits2vis(ghdu=ghdu)
-
-    # close HDU if this is loaded from a file
-    if closehdu:
-        hdulist.close()
-
-    # create UVData
-    uvd = UVData()
-    uvd.set_array(array)
-    uvd.set_source(source)
-    uvd.set_freq(freq)
-    uvd.vis = vis.copy()
-    uvd.set_freq2vis()
-    uvd.flags["recalc_uvw"] = True
-    uvd.flags["recalc_antab"] = True
-    uvd.calc_uvw()
-
-    return uvd
-
-
 def uvfits2HDUs(hdulist):
     """
     Read HDUList, and get PrimaryHDU & HDUS for AIPS AN/FQ Tables
@@ -85,7 +32,7 @@ def uvfits2HDUs(hdulist):
         HDU for AIPS AN Table
         HDU for AIPS FQ Table
     """
-    from smili2.util.terminal import warn
+    from ....util.terminal import warn
 
     hduinfo = hdulist.info(output=False)
     Nhdu = len(hduinfo)
@@ -124,10 +71,11 @@ def uvfits2vis(ghdu):
     Returns:
         xarray.DataArray: complex visibility in SMILI format
     """
-    from smili2.util import warn
+    from ....util import warn
+    from .. import VisData
     from astropy.time import Time
-    from xarray import DataArray
-    from numpy import moveaxis, float64, int32, int64, zeros, where, power
+    from xarray import Dataset
+    from numpy import moveaxis, float64, int32, int64, zeros, where, power, deg2rad
     from numpy import abs, sign, isinf, isnan, finfo, unique, modf, arange, min, diff
 
     # read visibilities
@@ -139,8 +87,6 @@ def uvfits2vis(ghdu):
         warn("GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
         warn("We will pick up only the first one.")
     vis_ghdu = ghdu.data.data[:, 0, 0, :]  # to [data,if,ch,stokes,complex]
-    vis_ghdu = moveaxis(vis_ghdu, 0, -2)  # [if, ch, stokes, data, complex]
-    vis_ghdu = moveaxis(vis_ghdu, 2, 0)  # [if, ch, stokes, data, complex]
 
     # get visibilities, errors, and flag (flagged, removed,)
     vcmp = float64(vis_ghdu[:, :, :, :, 0]) + 1j * \
@@ -229,8 +175,8 @@ def uvfits2vis(ghdu):
     # antenna ID
     subarray, bl = modf(bl)
     subarray = int64(100*(subarray)+1)
-    antid1 = int64(bl//256)
-    antid2 = int64(bl % 256)
+    antid1 = int64(bl//256)-1
+    antid2 = int64(bl % 256)-1
     if len(unique(subarray)) > 1:
         warn("Group HDU contains data with 2 or more subarrays.")
         warn("It will likely cause a problem, since SMILI assumes UVFITS for a single subarray.")
@@ -240,10 +186,18 @@ def uvfits2vis(ghdu):
         (arange(Nstokes)+1-ghdu.header["CRPIX3"])+ghdu.header["CRVAL3"]
     stokes = [stokesid2name["%+d" % (stokesid)] for stokesid in stokesids]
 
+    # source info
+    srcname = ghdu.header["OBJECT"]
+    ra = ghdu.header["CRVAL6"]
+    dec = ghdu.header["CRVAL7"]
+
     # form a data array
-    vis = DataArray(
-        vcmp,
-        dims=["stokes", "if", "ch", "data"],
+    vis = Dataset(
+        data_vars=dict(
+            vis=(["data", "if", "ch", "stokes"], vcmp),
+            flag=(["data", "if", "ch", "stokes"], flag),
+            sigma=(["data", "if", "ch", "stokes"], sigma),
+        ),
         coords=dict(
             mjd=("data", mjd),
             dmjd=("data", dmjd),
@@ -252,172 +206,13 @@ def uvfits2vis(ghdu):
             wsec=("data", wsec),
             antid1=("data", antid1),
             antid2=("data", antid2),
-            flag=(["stokes", "if", "ch", "data"], flag),
-            sigma=(["stokes", "if", "ch", "data"], sigma),
             stokes=(["stokes"], stokes),
-            #            freq=(["if", "ch"], self.freq.get_freqarr()),
-            #            chbw=(["if"], self.freq.table["ch_bw"].values)
+        ),
+        attrs=dict(
+            srcname=srcname,
+            ra=ra,
+            dec=dec,
         )
     )
 
-    return vis
-
-
-def uvfits2Array(antab):
-    """
-    Load the rray information from uvfits's AIPS AN table into the SMILI format.
-
-    Args:
-        antab (astropy.io.fits.HDU): HDU for AIPS AN table
-
-    Returns:
-        array.Array: array information in SMILI format
-    """
-    from numpy import complex128, asarray, zeros, ones
-    from ....util.terminal import warn
-    from ....array.array import Array, ArrayTable
-
-    # The array name
-    name = antab.header["ARRNAM"]
-
-    # Number of Antenna
-    Nant = len(antab.data)
-
-    # Anteanna Name
-    antname = antab.data["ANNAME"].tolist()
-
-    # XYZ Coordinates
-    xyz = antab.data["STABXYZ"]
-
-    # Parse Field Rotation Information
-    #   See AIPS MEMO 117
-    #      0: ALT-AZ, 1: Eq, 2: Orbit, 3: X-Y, 4: Naismith-R, 5: Naismith-L
-    #      6: Manual
-    mntsta = antab.data["MNTSTA"]
-    fr_pa_coeff = ones(Nant)
-    fr_el_coeff = zeros(Nant)
-    fr_offset = zeros(Nant)
-    for i in range(Nant):
-        if mntsta[i] == 0:  # azel
-            fr_pa_coeff[i] = 1
-            fr_el_coeff[i] = 0
-        elif mntsta[i] == 1:  # Equatorial
-            fr_pa_coeff[i] = 0
-            fr_el_coeff[i] = 0
-        elif mntsta[i] == 4:  # Nasmyth-R
-            fr_pa_coeff[i] = 1
-            fr_el_coeff[i] = 1
-        elif mntsta[i] == 5:  # Nasmyth-L
-            fr_pa_coeff[i] = 1
-            fr_el_coeff[i] = -1
-        else:
-            warn("[WARNING] MNTSTA %d at Station %s is not supported currently." % (
-                mntsta[i], antname[i]))
-
-    d1 = zeros(Nant, dtype=complex128)
-    d2 = zeros(Nant, dtype=complex128)
-
-    data = dict(
-        antname=antname,
-        x=xyz[:, 0],
-        y=xyz[:, 1],
-        z=xyz[:, 2],
-        sefd1=zeros(Nant),
-        sefd2=zeros(Nant),
-        tau1=zeros(Nant),
-        tau2=zeros(Nant),
-        elmin=ones(Nant),
-        elmax=ones(Nant)*90.,
-        fr_pa_coeff=fr_pa_coeff,
-        fr_el_coeff=fr_el_coeff,
-        fr_offset=fr_offset,
-        d1=d1,
-        d2=d2,
-        anttype=asarray(["ground" for i in range(Nant)], dtype="U8"),
-    )
-
-    table = ArrayTable(
-        data=data,
-        columns=ArrayTable.header.name.to_list()
-    )
-
-    arraydata = Array(name=name, table=table)
-    return arraydata
-
-
-def uvfits2Freq(ghdu, antab, fqtab):
-    """
-    Load the frequency information from uvfits HDUs into the SMILI format.
-
-    Args:
-        ghdu (astropy.io.fits.HDU): Group (Primary) HDU
-        antab (astropy.io.fits.HDU): HDU for AIPS AN table
-        fqtab (astropy.io.fits.HDU): HDU for AIPS FQ table
-
-    Returns:
-        freq.Freq object: Loaded frequency table
-    """
-    from ....util.terminal import warn
-    from ....freq.freq import Freq, FreqTable
-    from numpy import float64
-
-    # read meta data from antenna table
-    reffreq = antab.header["FREQ"]  # reference frequency in GHz
-    # use array name because uvfits doesn't have such meta data
-    name = antab.header["ARRNAM"]
-
-    # get number of channels
-    dammy, dammy, dammy, Nif, Nch, dammy, dammy = ghdu.data.data.shape
-    del dammy
-
-    # read data from frequency table
-    nfrqsel = len(fqtab.data["FRQSEL"])
-    if nfrqsel > 1:
-        warn("Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
-    iffreq = float64(fqtab.data["IF FREQ"][0])
-    chbw = float64(fqtab.data["CH WIDTH"][0])
-    sideband = float64(fqtab.data["SIDEBAND"][0])
-
-    # check the consistency between the number of if in FQ Table and GroupHDU
-    if len(iffreq) != Nif:
-        raise ValueError(
-            "Group HDU has %d IFs, which is inconsistent with FQ table with %d IFs" % (
-                Nif, len(iffreq))
-        )
-
-    # Make FreqTable
-    data = dict(
-        if_freq=reffreq + iffreq,
-        ch_bw=chbw,
-        sideband=sideband,
-    )
-    freqtable = FreqTable(
-        data=data,
-        columns=FreqTable.header.name.to_list()
-    )
-    return Freq(freqtable=freqtable, Nch=Nch, name=name)
-
-
-def uvfits2Source(ghdu):
-    """
-    Load the frequency information from uvfits HDUs into the SMILI format.
-
-    Args:
-        ghdu (astropy.io.fits.HDU): Group (Primary) HDU
-
-    Returns:
-        source.Source object: Loaded source information
-    """
-    from astropy.coordinates import SkyCoord
-    from ....util.units import DEG
-    from ....source.source import Source
-
-    # get source name and radec
-    srcname = ghdu.header["OBJECT"]
-    ra_deg = ghdu.header["CRVAL6"]
-    dec_deg = ghdu.header["CRVAL7"]
-
-    # create a skycoord object
-    skycoord = SkyCoord(ra=ra_deg*DEG, dec=dec_deg*DEG)
-
-    return Source(name=srcname, skycoord=skycoord)
+    return VisData(vis)
