@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 from numpy import int64
+
 
 # Dictionary for Stokes labels and their IDs in UVFITS
 stokesid2name = {
@@ -22,42 +20,31 @@ stokesname2id = {}
 for key in stokesid2name.keys():
     stokesname2id[stokesid2name[key]] = int64(key)
 
+# -----------------------------------------------------------------------------
+# uvfits loading
+# -----------------------------------------------------------------------------
 
-def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
+
+def uvfits2UVData(uvfits, printlevel=0):
     """
     Load an uvfits file. Currently, this function can read only single-source,
     single-frequency-setup, single-array data correctly.
 
     Args:
-        uvfits (string or pyfits.HDUList object):
-            Input uvfits data
-        zarr (string):
-            Output zarr file for UVData
-        scangap (float or astropy.units.Quantity, optional):
-            Minimal time seperation between scans.
-            If not specfied, this will be guessed from data segmentation (see nseg).
-            If a float value is specified, its unit is assumuted to be in seconds.
-            Defaults to None.
-        nseg (float, optional):
-            If scangap is None, the minimal time seperation between scans
-            will be set to nseg * minimal_data_segementation_time.
-            Defaults to 2.
-        printlevel (integer, optional):
-            print some notes. 0: silient 3: maximum level
+        uvfits (string or pyfits.HDUList object): input uvfits data
+        printlevel (integer): print some notes. 0: silient 3: maximum level
     Returns:
         uvdata.UVData object
     """
     import astropy.io.fits as pf
-    import os
-    from .zarr import zarr2UVData
-    import zarr
+    from ....uvdata import UVData
 
     # check input files
-    if isinstance(inuvfits, type("")):
-        hdulist = pf.open(inuvfits)
+    if isinstance(uvfits, type("")):
+        hdulist = pf.open(uvfits)
         closehdu = True
     else:
-        hdulist = inuvfits
+        hdulist = uvfits
         closehdu = False
 
     # print HDU info if requested.
@@ -67,34 +54,27 @@ def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
 
     # load data
     ghdu, antab, fqtab = uvfits2HDUs(hdulist)
-
-    # create zarr file
-    z = zarr.open(outzarr, mode="w")
-
-    # Load info from HDU
-    #   Frequency
-    uvfits2freq(ghdu=ghdu, antab=antab, fqtab=fqtab).to_zarr(outzarr)
-    del fqtab
-    #   Antenna
-    uvfits2ant(antab=antab).to_zarr(outzarr)
-    del antab
-    #   Source
-    uvfits2src(ghdu=ghdu).to_zarr(outzarr)
-    #   Visibilities
-    vistab = uvfits2vistab(ghdu=ghdu)
-    del ghdu
-
-    # Detect scans and save visibilities and scaninfo to zarr file
-    vistab.set_scan(scangap=scangap, nseg=2)
-    vistab.to_zarr(outzarr)
-    vistab.gen_scandata().to_zarr(outzarr)
+    source = uvfits2Source(ghdu=ghdu)
+    freq = uvfits2Freq(ghdu=ghdu, antab=antab, fqtab=fqtab)
+    array = uvfits2Array(antab=antab)
+    vis = uvfits2vis(ghdu=ghdu)
 
     # close HDU if this is loaded from a file
     if closehdu:
         hdulist.close()
 
-    # open zarr file and return it
-    return zarr2UVData(inzarr=outzarr)
+    # create UVData
+    uvd = UVData()
+    uvd.set_array(array)
+    uvd.set_source(source)
+    uvd.set_freq(freq)
+    uvd.data = vis.copy()
+    uvd.set_freq2vis()
+    uvd.flags["recalc_uvw"] = True
+    uvd.flags["recalc_antab"] = True
+    uvd.calc_uvw()
+
+    return uvd
 
 
 def uvfits2HDUs(hdulist):
@@ -109,7 +89,7 @@ def uvfits2HDUs(hdulist):
         HDU for AIPS AN Table
         HDU for AIPS FQ Table
     """
-    from ....util.terminal import warn
+    from smili2.util.terminal import warn
 
     hduinfo = hdulist.info(output=False)
     Nhdu = len(hduinfo)
@@ -138,21 +118,20 @@ def uvfits2HDUs(hdulist):
     return ghdu, antab, fqtab
 
 
-def uvfits2vistab(ghdu):
+def uvfits2vis(ghdu):
     """
-    Load the array information from uvfits's AIPS AN table into the SMILI format.
+    Load the rray information from uvfits's AIPS AN table into the SMILI format.
 
     Args:
         ghdu (astropy.io.fits.HDU): Group (Primary) HDU
 
     Returns:
-        VisData: complex visibility in SMILI format
+        xarray.DataArray: complex visibility in SMILI format
     """
-    from ....util import warn
-    from ..vis.vistab import VisTable
+    from smili2.util import warn
     from astropy.time import Time
-    from xarray import Dataset
-    from numpy import float64, int32, int64, zeros, where, power
+    from xarray import DataArray
+    from numpy import moveaxis, float64, int32, int64, zeros, where, power
     from numpy import abs, sign, isinf, isnan, finfo, unique, modf, arange, min, diff
 
     # read visibilities
@@ -164,6 +143,8 @@ def uvfits2vistab(ghdu):
         warn("GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
         warn("We will pick up only the first one.")
     vis_ghdu = ghdu.data.data[:, 0, 0, :]  # to [data,if,ch,stokes,complex]
+    # vis_ghdu = moveaxis(vis_ghdu, 0, -2)  # [if, ch, stokes, data, complex]
+    # vis_ghdu = moveaxis(vis_ghdu, 2, 0)  # [if, ch, stokes, data, complex]
 
     # get visibilities, errors, and flag (flagged, removed,)
     vcmp = float64(vis_ghdu[:, :, :, :, 0]) + 1j * \
@@ -252,8 +233,8 @@ def uvfits2vistab(ghdu):
     # antenna ID
     subarray, bl = modf(bl)
     subarray = int64(100*(subarray)+1)
-    antid1 = int64(bl//256)-1
-    antid2 = int64(bl % 256)-1
+    antid1 = int64(bl//256)
+    antid2 = int64(bl % 256)
     if len(unique(subarray)) > 1:
         warn("Group HDU contains data with 2 or more subarrays.")
         warn("It will likely cause a problem, since SMILI assumes UVFITS for a single subarray.")
@@ -264,10 +245,10 @@ def uvfits2vistab(ghdu):
     stokes = [stokesid2name["%+d" % (stokesid)] for stokesid in stokesids]
 
     # form a data array
-    ds = Dataset(
-        data_vars=dict(
-            vis=(["data", "if", "ch", "stokes"], vcmp)
-        ),
+    vis = DataArray(
+        vcmp,
+        #        dims=["stokes", "if", "ch", "data"],
+        dims=["data", "if", "ch", "stokes"],
         coords=dict(
             mjd=("data", mjd),
             dmjd=("data", dmjd),
@@ -279,12 +260,15 @@ def uvfits2vistab(ghdu):
             flag=(["data", "if", "ch", "stokes"], flag),
             sigma=(["data", "if", "ch", "stokes"], sigma),
             stokes=(["stokes"], stokes),
+            #            freq=(["if", "ch"], self.freq.get_freqarr()),
+            #            chbw=(["if"], self.freq.table["ch_bw"].values)
         )
     )
-    return VisTable(ds=ds)
+
+    return vis
 
 
-def uvfits2ant(antab):
+def uvfits2Array(antab):
     """
     Load the rray information from uvfits's AIPS AN table into the SMILI format.
 
@@ -292,12 +276,11 @@ def uvfits2ant(antab):
         antab (astropy.io.fits.HDU): HDU for AIPS AN table
 
     Returns:
-        AntData: array information in SMILI format
+        array.Array: array information in SMILI format
     """
-    from numpy import asarray, zeros, ones
+    from numpy import complex128, asarray, zeros, ones
     from ....util.terminal import warn
-    from ..ant.ant import AntData
-    from xarray import Dataset
+    from ....array.array import Array, ArrayTable
 
     # The array name
     name = antab.header["ARRNAM"]
@@ -336,28 +319,38 @@ def uvfits2ant(antab):
             warn("[WARNING] MNTSTA %d at Station %s is not supported currently." % (
                 mntsta[i], antname[i]))
 
-    # assume all of them are ground array
-    anttype = asarray(["g" for i in range(Nant)], dtype="U8")
+    d1 = zeros(Nant, dtype=complex128)
+    d2 = zeros(Nant, dtype=complex128)
 
-    ant = Dataset(
-        coords=dict(
-            antname=("ant", antname),
-            x=("ant", xyz[:, 0]),
-            y=("ant", xyz[:, 1]),
-            z=("ant", xyz[:, 2]),
-            fr_pa_coeff=("ant", fr_pa_coeff),
-            fr_el_coeff=("ant", fr_el_coeff),
-            fr_offset=("ant", fr_offset),
-            anttype=("ant", anttype),
-        ),
-        attrs=dict(
-            name=name,
-        ),
+    data = dict(
+        antname=antname,
+        x=xyz[:, 0],
+        y=xyz[:, 1],
+        z=xyz[:, 2],
+        sefd1=zeros(Nant),
+        sefd2=zeros(Nant),
+        tau1=zeros(Nant),
+        tau2=zeros(Nant),
+        elmin=ones(Nant),
+        elmax=ones(Nant)*90.,
+        fr_pa_coeff=fr_pa_coeff,
+        fr_el_coeff=fr_el_coeff,
+        fr_offset=fr_offset,
+        d1=d1,
+        d2=d2,
+        anttype=asarray(["ground" for i in range(Nant)], dtype="U8"),
     )
-    return AntData(ant)
+
+    table = ArrayTable(
+        data=data,
+        columns=ArrayTable.header.name.to_list()
+    )
+
+    arraydata = Array(name=name, table=table)
+    return arraydata
 
 
-def uvfits2freq(ghdu, antab, fqtab):
+def uvfits2Freq(ghdu, antab, fqtab):
     """
     Load the frequency information from uvfits HDUs into the SMILI format.
 
@@ -367,11 +360,10 @@ def uvfits2freq(ghdu, antab, fqtab):
         fqtab (astropy.io.fits.HDU): HDU for AIPS FQ table
 
     Returns:
-        FreqData: Loaded frequency table
+        freq.Freq object: Loaded frequency table
     """
     from ....util.terminal import warn
-    from ..freq import FreqData
-    from xarray import Dataset
+    from ....freq.freq import Freq, FreqTable
     from numpy import float64
 
     # read meta data from antenna table
@@ -399,47 +391,72 @@ def uvfits2freq(ghdu, antab, fqtab):
         )
 
     # Make FreqTable
-    dataset = Dataset(
-        coords=dict(
-            if_freq=("if", reffreq+iffreq),
-            ch_bw=("if", chbw),
-            sideband=("if", sideband)
-        ),
-        attrs=dict(
-            name=name,
-            Nch=Nch,
-        )
+    data = dict(
+        if_freq=reffreq + iffreq,
+        ch_bw=chbw,
+        sideband=sideband,
     )
-    freq = FreqData(dataset)
-    freq.recalc_freq()
+    freqtable = FreqTable(
+        data=data,
+        columns=FreqTable.header.name.to_list()
+    )
+    return Freq(freqtable=freqtable, Nch=Nch, name=name)
 
-    return freq
 
-
-def uvfits2src(ghdu):
+def uvfits2Source(ghdu):
     """
-    Load the source information from uvfits HDUs into the SMILI format.
+    Load the frequency information from uvfits HDUs into the SMILI format.
 
     Args:
         ghdu (astropy.io.fits.HDU): Group (Primary) HDU
 
     Returns:
-        SrcData: Loaded frequency table
+        source.Source object: Loaded source information
     """
-    from ..src.src import SrcData
-    from xarray import Dataset
+    from astropy.coordinates import SkyCoord
+    from ....util.units import DEG
+    from ....source.source import Source
 
-    # source info
+    # get source name and radec
     srcname = ghdu.header["OBJECT"]
-    ra = ghdu.header["CRVAL6"]
-    dec = ghdu.header["CRVAL7"]
+    ra_deg = ghdu.header["CRVAL6"]
+    dec_deg = ghdu.header["CRVAL7"]
 
-    src = Dataset(
-        attrs=dict(
-            name=srcname,
-            ra=ra,
-            dec=dec
-        ),
-    )
+    # create a skycoord object
+    skycoord = SkyCoord(ra=ra_deg*DEG, dec=dec_deg*DEG)
 
-    return SrcData(src)
+    return Source(name=srcname, skycoord=skycoord)
+
+# -----------------------------------------------------------------------------
+# uvfits writing
+# -----------------------------------------------------------------------------
+
+
+def UVData2uvfits(uvd, filename=None, overwrite=True):
+    """
+    save UVData to uvfits file. If the filename is not given,
+    then return HDUList object
+
+    Args:
+        filename (str):
+            Output uvfits filename
+        overwrite (boolean; default=True)
+            If True, overwrite when the specified file already exiests.
+    Returns:
+        astropy.io.fits.HDUList object if filename=None.
+    """
+    from astropy.io.fits import HDUList
+
+    # create HDUList
+    hdulist = []
+    # hdulist.append(self._create_ghdu_single())
+    # hdulist.append(self._create_fqtab())
+    #hdulist += self._create_antab()
+    hdulist = HDUList(hdulist)
+
+    # return HDUList or write it to a uvfits file
+    if filename is None:
+        return hdulist
+    else:
+        hdulist.writeto(filename, overwrite=overwrite)
+        hdulist.close()

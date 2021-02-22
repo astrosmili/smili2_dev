@@ -1,22 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
+'''
+from ....util.zarrds import ZarrDataset
 
 
-class AntData(object):
-    # Xarray Dataset
-    ds = None
+class AntData(ZarrDataset):
+    """
+    Frequency Dataset:
+    This class is storing Antenna Metadata for UV data sets
+    mainly using xarray.Dataset
+    """
+    # Data type name
+    name = "Antenna Dataset"
 
-    def __init__(self, ds):
-        self.ds = ds.copy()
-
-    def copy(self):
-        """
-        Replicate this uvdata set to a new UVData object.
-
-        Returns:
-            Replicated data
-        """
-
-        outdata = AntData(ds=self.ds.copy())
-
-        return outdata
+    # Group Name of zarr file
+    zarr_group = "antenna"

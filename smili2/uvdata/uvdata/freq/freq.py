@@ -1,13 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
+'''
+from ....util.zarrds import ZarrDataset
 
 
-class FreqData(object):
-    # Xarray Dataset
-    ds = None
+class FreqData(ZarrDataset):
+    """
+    Frequency Dataset:
+    This class is storing Frequency Metadata for UV data sets
+    mainly using xarray.Dataset
+    """
+    # Data type name
+    name = "Frequency Dataset"
 
-    def __init__(self, ds):
-        self.ds = ds.copy()
+    # Group Name of zarr file
+    zarr_group = "frequency"
 
     def get_shape(self):
         return (self.ds.if_freq.size, self.ds.Nch)
@@ -33,15 +41,3 @@ class FreqData(object):
             freqarr[iif] = if_freq + sideband * ch_bw * chidarr
 
         ds["freq"] = (["if", "ch"], freqarr)
-
-    def copy(self):
-        """
-        Replicate this uvdata set to a new UVData object.
-
-        Returns:
-            Replicated data
-        """
-
-        outdata = FreqData(ds=self.ds.copy())
-
-        return outdata

@@ -5,14 +5,14 @@
 from ....util.zarrds import ZarrDataset
 
 
-class SrcData(ZarrDataset):
+class ScanData(ZarrDataset):
     """
-    Source Dataset:
-    This class is storing Source Metadata for UV data sets
+    Scan Dataset:
+    This class is storing Scan Metadata for UV data sets
     mainly using xarray.Dataset
     """
     # Data type name
-    name = "Source Dataset"
+    name = "Scan Dataset"
 
     # Group Name of zarr file
-    zarr_group = "source"
+    zarr_group = "scan"

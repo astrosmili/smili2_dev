@@ -29,6 +29,8 @@ setup(
         "matplotlib",
         "pandas",
         "xarray",
+        "dask",
+        "zarr",
         "astropy",
         "numba",
         "scikit-image",
