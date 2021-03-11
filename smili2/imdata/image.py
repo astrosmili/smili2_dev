@@ -1512,7 +1512,7 @@ class Image(object):
     def to_fits_ehtim(self, outfits=None, overwrite=True, idx=(0, 0)):
         '''
         save the image(s) to the image FITS file or HDUList in the eht-imaging
-        library's format
+        library''s format
 
         Args:
             outfits (string; default is None):
