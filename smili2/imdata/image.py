@@ -37,6 +37,9 @@ class Image(object):
                  imdtype=None,
                  coordsys=None,
                  equinox=None,
+                 latpole=None,
+                 lonpole=None,
+                 obsgeo=None,
                  **args):
         """
         The Class to handle five dimensional images
@@ -61,6 +64,8 @@ class Image(object):
                                                                  data type
             coordsys (str, optional) sky coord reference frame
             equinox (float, optional) equinox of sky coord system in years
+            latpole (float, optional) Native latitude of the celestial N-pole
+            lonpole (float, optional) Native longitude of the celestial N-pole
 
         Attributes:
             data (xarray.DataArray): Image data
@@ -148,6 +153,25 @@ class Image(object):
         else:
             args['equinox'] = float64(equinox)
 
+        if latpole is None:
+            args['latpole'] = float64(-1.)
+        else:
+            args['latpole'] = float64(latpole)
+
+        if lonpole is None:
+            args['lonpole'] = float64(-1.)
+        else:
+            args['lonpole'] = float64(lonpole)
+            
+        if obsgeo is None:
+            args['obsgeo_x'] = float64(-1.)
+            args['obsgeo_y'] = float64(-1.)
+            args['obsgeo_z'] = float64(-1.)
+        else:
+            args['obsgeo_x'] = float64(obsgeo[0])
+            args['obsgeo_y'] = float64(obsgeo[1])
+            args['obsgeo_z'] = float64(obsgeo[2])
+
         # initialize meta data       
         self._init_meta()
 
@@ -167,6 +191,7 @@ class Image(object):
         self.init_xygrid()
         self.set_mjd(mjd)
         self.set_freq(freq)
+        #self.set_obsgeo(obsgeo)
 
     def _init_meta(self):
         '''
@@ -221,7 +246,17 @@ class Image(object):
             # Coordinates in the ICRS system do not have an associated equinox.
             # Therefore, the equinox value of -1 indicates its absense. 
             equinox = MetaRec(val=-1., unit="year", dtype="float64",
-                        comment="Equinox of the sky coordinate system in years")
+                    comment="Equinox of the sky coordinate system in years"),
+            latpole = MetaRec(val=-1., unit="deg", dtype="float64",
+                    comment="Native latitude of the celestial North pole"),
+            lonpole = MetaRec(val=-1., unit="deg", dtype="float64",
+                    comment="Native longitude of the celestial North pole"),
+            obsgeo_x = MetaRec(val=-1., unit="m", dtype="float64",
+                    comment="Geographic X coordinate of the observatory"),
+            obsgeo_y = MetaRec(val=-1., unit="m", dtype="float64",
+                    comment="Geographic Y coordinate of the observatory"),
+            obsgeo_z = MetaRec(val=-1., unit="m", dtype="float64",
+                    comment="Geographic Z coordinate of the observatory")
         )
 
         
@@ -362,6 +397,18 @@ class Image(object):
             freq_arr = freq.copy()
 
         self.data["freq"] = freq_arr
+
+        
+    # def set_obsgeo(self, obsgeo):
+    #     """
+    #     Set the Cartesian geographic XYZ coordinates of the observatory.
+
+    #     Args:
+    #         obsgeo: in degrees
+    #     """
+    #     obsgeo_arr = obsgeo.copy()
+
+    #     self.data["obsgeo"] = obsgeo_arr
 
         
     def set_beam(self, majsize=0., minsize=0., pa=0., scale=1., angunit=None):
@@ -1372,7 +1419,8 @@ class Image(object):
             imdata.Image: loaded image
         """
         import astropy.io.fits as pf
-        from numpy import abs, deg2rad, arange
+        import numpy as np
+        from numpy import abs, deg2rad, arange, array
         from numpy import float32, float64, int32, int16
         from astropy.coordinates import SkyCoord
         from astropy.time import Time
@@ -1470,6 +1518,33 @@ class Image(object):
         else:
             equinox = None
         
+        # Native longitude of the celestial North pole
+        if 'LONPOLE' in hdu.header:
+            lonpole = hdu.header['LONPOLE']
+        else:
+            lonpole = None
+        
+        # Native latitude of the celestial North pole
+        if 'LATPOLE' in hdu.header:
+            latpole = hdu.header['LATPOLE']
+        else:
+            latpole = None
+        
+        # Cartesian geographic X-coordinate of the observatory
+        obsgeo = []
+        if 'OBSGEO-X' in hdu.header:
+            obsgeo.append(hdu.header['obsgeo-x'])
+        
+        # Cartesian geographic Y-coordinate of the observatory
+        if 'OBSGEO-Y' in hdu.header:
+            obsgeo.append(hdu.header['obsgeo-y'])
+        
+        # Cartesian geographic Z-coordinate of the observatory
+        if 'OBSGEO-Z' in hdu.header:
+            obsgeo.append(hdu.header['obsgeo-z'])
+
+        obsgeo = np.array(obsgeo)
+        
         img = cls(
             nx=nx, ny=ny,
             dx=dx, dy=dy, angunit="rad",
@@ -1482,7 +1557,10 @@ class Image(object):
             instrument=instrument,
             imdtype=imdtp,
             equinox=equinox,
-            coordsys=coordsys)
+            coordsys=coordsys,
+            latpole=latpole,
+            lonpole=lonpole,
+            obsgeo=obsgeo)
 
         #
         # Copy data from the fits hdu to the Image class instance img
@@ -1646,6 +1724,12 @@ class Image(object):
         # set header
         hdu.header.set("OBJECT", self.meta["source"].val)
 
+        if 'coordsys' in self.meta:
+            hdu.header.set('RADESYS', self.meta['coordsys'].val)
+
+        if 'equinox' in self.meta:
+            hdu.header.set('EQUINOX', self.meta['equinox'].val)
+
         hdu.header.set("CTYPE1", "RA---SIN")
         hdu.header.set("CRVAL1", self.meta["x"].val*rad2deg)
         hdu.header.set("CDELT1", -self.meta["dx"].val*rad2deg)
@@ -1686,13 +1770,6 @@ class Image(object):
         hdu.header.set("TELESCOP", self.meta["instrument"].val)
         hdu.header.set("BUNIT", "JY/PIXEL")
 #        hdu.header.set("STOKES", stokes)
-
-        if 'coordsys' in self.meta:
-            hdu.header.set('RADESYS', self.meta['coordsys'].val)
-
-        if 'equinox' in self.meta:
-            hdu.header.set('EQUINOX', self.meta['equinox'].val)
-
         # appended to HDUList
         hdulist.append(hdu)
 

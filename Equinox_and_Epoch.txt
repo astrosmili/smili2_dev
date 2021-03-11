@@ -1,0 +1,24 @@
+https://oneau.wordpress.com/2011/10/27/equinox-epoch/
+Posted on October 27, 2011 by Prasanth Nair
+
+Equinox and Epoch
+
+The word epoch denotes a particular point in time. In this sense the word has the same meaning in astronomy as it has in day-to-day life. For example, epoch J2000 means the time corresponding to the Julian date 2451545.0 in the concerned time system. In the Gregorian calendar this is 2000/1/1 12:00:00.
+
+If we record the coordinates of a comet on 2011/11/11 11:11:11 UTC in the Gregorian calendar, then the epoch of the coordinates is 2011/11/11 11:11:11 UTC, or equivalently the Julian date 2455876.966099537 UTC. At a different time i.e., epoch, say 2011/11/11 22:22:22, the comet would have moved some distance and will have a different set of coordinates.
+
+Due to precession the reference point for celestial coordinates, the vernal equinox, is continuously changing. So when specifying coordinates of a body we need to specify the location of the vernal equinox, which then fixes the orientation of the coordinate system. We do this by mentioning that the coordinate system is defined by the location of the vernal equinox at a particular time. This time i.e., epoch is referred to as the equinox of the coordinates.
+
+In catalogs, we usually find entries such as (RA, DE) equinox J2000 epoch J2000. This means that the given (RA, DE) is the coordinate of the star at the time J2000 (epoch J2000), in the coordinate system defined by the vernal equinox at the time J2000 (equinox J2000).
+
+If the star has proper motion, then we need to apply proper motion from J2000 to the epoch of interest to get the position of the star at this time. If the epoch of interest is 2010/10/10, then the epoch of the coordinates after applying proper motion from J2000 to 2010/10/10, is 2010/10/10, but its equinox remains at J2000.
+
+Going back to the example of the comet, assume that the coordinates were measured using the known equinox J2000 positions of stars in an image. In this situation, the equinox of the comet’s coordinates is J2000, but its epoch is the time of observation i.e., 2011/11/11 11:11:11.
+
+Suppose we want to point a telescope at the comet, at the time 2011/11/11 12:00:00. Then we need to take the coordinates at equinox J2000 epoch 2011/11/11 11:11:11, apply proper motion to find the coordinates at equinox J2000 epoch 2011:11:11 12:00:00, then precess the equinox from J2000 to 2011:11:11 12:00:00 to get the position at equinox 2011/11/11 12:00:00 epoch 2011/11/11 12:00:00, and then convert (RA, DE) to (Azimuth, Elevation).
+
+To flog a dead horse, we precess from one equinox to the next but we apply proper motion from one epoch to the next.
+
+The modern celestial coordinate system, ICRS, does not refer to the vernal equinox, and its reference axes are fixed in space. Due to this coordinates in the ICRS system do not have an associated equinox. They only have an epoch.
+
+Amen.
