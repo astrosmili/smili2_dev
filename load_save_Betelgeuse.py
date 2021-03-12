@@ -10,7 +10,7 @@ from alma_util import workdir
 basedir = workdir() + 'ALMA/'
 
 fitsin =  basedir + 'RoundSpottyDisk.fits'
-fitsout = basedir + 'RoundSpottyDisk_smili_1.fits'
+fitsout = basedir + 'RoundSpottyDisk_smili.fits'
 
 ttl = 'Round Spotty Disk. Freq = 46.1 GHz.'
 
