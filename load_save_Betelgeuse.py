@@ -16,7 +16,7 @@ ttl = 'Round Spotty Disk. Freq = 46.1 GHz.'
 
 cas = imdata.load_fits_casa(fitsin, imdtype=np.float32) 
 
-# cas.to_fits_casa(fitsout) 
+cas.to_fits_casa(fitsout) 
 
 #
 # Frequency array

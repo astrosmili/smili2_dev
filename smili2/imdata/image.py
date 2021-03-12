@@ -1723,12 +1723,19 @@ class Image(object):
 
         # set header
         hdu.header.set("OBJECT", self.meta["source"].val)
+        hdu.header.set("BUNIT", "Jy/pixel")
+
+        if 'equinox' in self.meta:
+            hdu.header.set('EQUINOX', self.meta['equinox'].val)
 
         if 'coordsys' in self.meta:
             hdu.header.set('RADESYS', self.meta['coordsys'].val)
 
-        if 'equinox' in self.meta:
-            hdu.header.set('EQUINOX', self.meta['equinox'].val)
+        if 'lonpole' in self.meta:
+            hdu.header.set('LONPOLE', self.meta['lonpole'].val)
+
+        if 'latpole' in self.meta:
+            hdu.header.set('LATPOLE', self.meta['latpole'].val)
 
         hdu.header.set("CTYPE1", "RA---SIN")
         hdu.header.set("CRVAL1", self.meta["x"].val*rad2deg)
@@ -1759,6 +1766,7 @@ class Image(object):
         hdu.header.set("OBSRA", self.meta["x"].val*rad2deg)
         hdu.header.set("OBSDEC", self.meta["y"].val*rad2deg)
         hdu.header.set("FREQ", self.data["freq"].data[ifref-1])
+        hdu.header.set("TELESCOP", self.meta["instrument"].val)
 
         mjd = self.data["mjd"].data[imjd]
         tim = Time(mjd, format='mjd', scale='utc') # Time object
@@ -1767,8 +1775,16 @@ class Image(object):
         hdu.header.set("DATE-OBS", isot)
         hdu.header.set("MJD", mjd)
 
-        hdu.header.set("TELESCOP", self.meta["instrument"].val)
-        hdu.header.set("BUNIT", "JY/PIXEL")
+        
+        if 'obsgeo_x' in self.meta:
+            hdu.header.set('OBSGEO-X', self.meta['obsgeo_x'].val)
+
+        if 'obsgeo_y' in self.meta:
+            hdu.header.set('OBSGEO-Y', self.meta['obsgeo_y'].val)
+
+        if 'obsgeo_z' in self.meta:
+            hdu.header.set('OBSGEO-Z', self.meta['obsgeo_z'].val)
+
 #        hdu.header.set("STOKES", stokes)
         # appended to HDUList
         hdulist.append(hdu)
