@@ -9,7 +9,7 @@ __author__ = "Smili Developer Team"
 # Imaging
 from . import imdata
 from . import uvdata
-from . import imaging
+# from . import imaging
 from . import geomodel
 
 # Common module
