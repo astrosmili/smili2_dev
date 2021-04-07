@@ -71,6 +71,7 @@ def vistabscan2visdsscan(scangroup, outzarr):
                 dmjd=("time", scands.dmjd.data[mjdidx]),
                 antid1=("baseline", scands.antid1.data[blidx]),
                 antid2=("baseline", scands.antid2.data[blidx]),
+                stokes=("stokes", scands.stokes.data),
                 usec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 vsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 wsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),

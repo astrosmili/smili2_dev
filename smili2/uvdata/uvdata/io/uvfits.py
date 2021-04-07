@@ -281,7 +281,7 @@ def uvfits2vistab(ghdu):
             stokes=(["stokes"], stokes),
         )
     )
-    return VisTable(ds=ds)
+    return VisTable(ds=ds.sortby(["mjd", "antid1", "antid2"]))
 
 
 def uvfits2ant(antab):
