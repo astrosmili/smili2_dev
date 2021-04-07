@@ -5,6 +5,5 @@ This module wrap up functions related to Fourier Tranformations
 '''
 __author__ = "Smili Developer Team"
 
-from .jax import GeoModel
-from .jax import Gaussian
-from .jax import Rectangular
+from .geomodel import GeoModel
+from .models import Gaussian, Rectangular
