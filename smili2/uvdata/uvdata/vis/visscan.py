@@ -4,6 +4,9 @@ from ....util.zarrds import ZarrScanDataset
 
 
 class VisScanData(ZarrScanDataset):
+    # Name
+    name = "visibility_scandata"
+
     # Xarray Dataset
     ds = None
 

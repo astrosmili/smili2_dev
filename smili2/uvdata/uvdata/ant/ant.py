@@ -7,7 +7,7 @@ from ....util.zarrds import ZarrDataset
 
 class AntData(ZarrDataset):
     """
-    Frequency Dataset:
+    Antenna-based Dataset:
     This class is storing Antenna Metadata for UV data sets
     mainly using xarray.Dataset
     """
