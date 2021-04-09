@@ -392,12 +392,14 @@ def uvfits2freq(ghdu, antab, fqtab):
     sideband = float64(fqtab.data["SIDEBAND"][0])
 
     # check the consistency between the number of if in FQ Table and GroupHDU
-    if len(iffreq) != Nif:
-        raise ValueError(
-            "Group HDU has %d IFs, which is inconsistent with FQ table with %d IFs" % (
-                Nif, len(iffreq))
-        )
-
+    if isinstance(iffreq, (float, float64, int)):
+        if Nif != 1:
+            raise ValueError("Group HDU has %d IFs, which is inconsistent " \
+                             "with FQ table with a single IF" % Nif)
+    else:
+        if len(iffreq) != Nif:
+            raise ValueError("Group HDU has %d IFs, which is inconsistent " \
+                             "with FQ table with %d IFs" % (Nif, len(iffreq)))
     # Make FreqTable
     dataset = Dataset(
         coords=dict(
