@@ -447,3 +447,17 @@ def uvfits2src(ghdu):
     )
 
     return SrcData(src)
+
+
+
+def sqitch_polrepr(vistab, polrepr, pseudoI=False):
+    """
+
+    """
+    pass
+
+
+
+
+
+
