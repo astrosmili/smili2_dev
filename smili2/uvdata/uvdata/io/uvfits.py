@@ -25,7 +25,9 @@ for key in stokesid2name.keys():
 
 def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
     """
-    Load an uvfits file. Currently, this function can read only single-source,
+    Alias: load_uvfits()
+
+    Load a uvfits file. Currently, this function can read only single-source,
     single-frequency-setup, single-array data correctly.
     Alias: load_uvfits()
 
@@ -159,8 +161,8 @@ def uvfits2vistab(ghdu):
     # read visibilities
     #    uvfits's original dimension is [data,dec,ra,if,ch,stokes,complex]
     #    first, we reorganize the array to [stokes,if,ch]
-    Ndata, Ndec, Nra, dammy, dammy, Nstokes, dammy = ghdu.data.data.shape
-    del dammy
+    Ndata, Ndec, Nra, dummy, dummy, Nstokes, dummy = ghdu.data.data.shape
+    del dummy
     if Nra > 1 or Ndec > 1:
         warn("GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
         warn("We will pick up only the first one.")
@@ -381,8 +383,8 @@ def uvfits2freq(ghdu, antab, fqtab):
     name = antab.header["ARRNAM"]
 
     # get number of channels
-    dammy, dammy, dammy, Nif, Nch, dammy, dammy = ghdu.data.data.shape
-    del dammy
+    dummy, dummy, dummy, Nif, Nch, dummy, dummy = ghdu.data.data.shape
+    del dummy
 
     # read data from frequency table
     nfrqsel = len(fqtab.data["FRQSEL"])
@@ -446,3 +448,17 @@ def uvfits2src(ghdu):
     )
 
     return SrcData(src)
+
+
+
+def sqitch_polrepr(vistab, polrepr, pseudoI=False):
+    """
+
+    """
+    pass
+
+
+
+
+
+
