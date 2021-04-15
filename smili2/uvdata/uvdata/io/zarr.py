@@ -3,6 +3,9 @@
 
 
 def zarr2UVData(inzarr):
+    '''
+    Alias: load_zarr()
+    '''
     import zarr
     from .. import AntData, FreqData, ScanData, VisData, VisTable, SrcData, UVData
 

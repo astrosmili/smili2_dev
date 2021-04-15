@@ -27,6 +27,7 @@ def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
     """
     Load an uvfits file. Currently, this function can read only single-source,
     single-frequency-setup, single-array data correctly.
+    Alias: load_uvfits()
 
     Args:
         uvfits (string or pyfits.HDUList object):
