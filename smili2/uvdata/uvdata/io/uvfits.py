@@ -451,14 +451,5 @@ def uvfits2src(ghdu):
 
 
 
-def sqitch_polrepr(vistab, polrepr, pseudoI=False):
-    """
-
-    """
-    pass
-
-
-
-
 
 

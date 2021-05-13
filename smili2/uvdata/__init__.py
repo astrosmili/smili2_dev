@@ -4,3 +4,4 @@
 from .uvdata import UVData
 from .uvdata import load_uvfits
 from .uvdata import load_zarr
+from .uvdata import switch_polrepr
