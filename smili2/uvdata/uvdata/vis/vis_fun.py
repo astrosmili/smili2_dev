@@ -18,5 +18,5 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     """
     from .vistab import VisTable
 
-
+    
 
