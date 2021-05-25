@@ -9,6 +9,6 @@ uvd = uv.load_uvfits('/home/benkev/ALMA/3C273.coeff.fittp.uvfits',
 ds = uvd.vistab.ds
 vs = ds.vis
 
-#vst = uv.switch_polrepr(vs, 'stokes')
+vst = uv.switch_polrepr('stokes')
 
 

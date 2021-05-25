@@ -44,6 +44,9 @@ class ZarrDataset(object):
             Loaded object
         """
         from xarray import open_zarr
+
+        # print(cls.zarr_group)
+        
         ds = open_zarr(inzarr, group=cls.zarr_group)
         return cls(ds=ds)
 

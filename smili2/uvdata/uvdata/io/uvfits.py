@@ -259,7 +259,8 @@ def uvfits2vistab(ghdu):
     antid2 = int64(bl % 256)-1
     if len(unique(subarray)) > 1:
         warn("Group HDU contains data with 2 or more subarrays.")
-        warn("It will likely cause a problem, since SMILI assumes UVFITS for a single subarray.")
+        warn("It will likely cause a problem, since SMILI assumes UVFITS" + \
+             " for a single subarray.")
 
     # read polarizations
     stokesids = ghdu.header["CDELT3"] * \

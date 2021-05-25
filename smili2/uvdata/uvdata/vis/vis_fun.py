@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-def switch_polrepr(vistab, polrepr, pseudoI=False):
+#def switch_polrepr(vistab, polrepr, pseudoI=False):
+def switch_polrepr(polrepr, pseudoI=False):
     """
     This function changes representation of the polarization of
     the visibility data provided in vistab (of class VisTable).
@@ -16,7 +17,11 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     pseudoI (bool): if True, calculate I from XX or RR.  (??????????)
     
     """
-    from .vistab import VisTable
+    # from .vistab import VisTable
+    from ...uvdata import load_zarr
 
+    zds = load_zarr('/home/benkev/ALMA/3C273_zarr')
+
+    print('??? done')
     
 
