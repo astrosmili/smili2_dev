@@ -79,13 +79,13 @@ ds1 = Dataset(
         vis=(["data", "if", "ch", "stokes"], vsar1)
     ),
     coords=dict(
-        mjd=("data", vs.mjd.data.compute()),
-        dmjd=("data", vs.dmjd.data.compute()),
-        usec=("data", vs.usec.data.compute()),
-        vsec=("data", vs.vsec.data.compute()),
-        wsec=("data", vs.wsec.data.compute()),
-        antid1=("data", vs.antid1.data.compute()),
-        antid2=("data", vs.antid2.data.compute()),
+        mjd=("data", vs.mjd.data),  # .compute()),
+        dmjd=("data", vs.dmjd.data),
+        usec=("data", vs.usec.data),
+        vsec=("data", vs.vsec.data),
+        wsec=("data", vs.wsec.data),
+        antid1=("data", vs.antid1.data),
+        antid2=("data", vs.antid2.data),
         flag=(["data", "if", "ch", "stokes"], flag1),
         sigma=(["data", "if", "ch", "stokes"], sig1),
         stokes=(["stokes"], ['I', 'Q', 'U', 'V']),
@@ -94,9 +94,11 @@ ds1 = Dataset(
 
 vt = uv.VisTable(ds=ds1.sortby(["mjd", "antid1", "antid2"]))
 
+sys.exit(0)
+
 vt.to_zarr(outzarr)   # ValueError: variable 'vis' already exists with
                       # different dimension sizes:
                       # {existing_sizes} != {new_sizes}.
-                      #to_zarr() only supports changing dimension sizes
+                      # to_zarr() only supports changing dimension sizes
                       # when explicitly appending, but append_dim=None.
 
