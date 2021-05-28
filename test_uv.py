@@ -23,7 +23,7 @@ shape1[-1] = 4             # Extend pol axis to 4 to hold 4 Stokes parameters
 # New visibility ndarray for Stokes parameters
 vsar1 = np.zeros(shape1, dtype=complex)
 flag1 = np.zeros(shape1, dtype=np.int32)
-sig1 = np.zeros(shape1, dtype=float)
+sig1 =  np.zeros(shape1, dtype=float)
 
 lpol = list(vs.stokes.data) # List of pols like ['RR', 'LL']
 
@@ -34,8 +34,9 @@ if lpol == ['RR', 'LL']:
     vsar1[:,:,:,1] = 0.                    # Q = 1/2 (RL + LR)
     vsar1[:,:,:,2] = 0.                    # U = 1/2j(RL - LR)
     vsar1[:,:,:,3] = 0.5*(rr - ll)         # V = 1/2 (RR - LL)
-    sig1[:,:,:,0] = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2)
-    sig1[:,:,:,3] = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2)  # ??????
+    sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2) #np.linalg.norm()
+    sig1[:,:,:,0] = sig_norm
+    sig1[:,:,:,3] = sig_norm
     flag1[:,:,:,0] = np.copy(flag[:,:,:,0])
     flag1[:,:,:,3] = np.copy(flag[:,:,:,1])
 
