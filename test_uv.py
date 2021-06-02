@@ -43,9 +43,13 @@ if lpol == ['RR', 'LL']:
     # Otherwise flag1 = -1
     #
     truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-    truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
-    flag1[truth_tbl1] = 1 # ??????????????????
-    flag1[truth_tbl0] = 0 # ?????????????????
+    # truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm)) # or 0!
+    flag1[truth_tbl1] = 1
+    flag1[truth_tbl0] = 0
+    flag1[truth_tbls] = 0  # Either has a bad sigma
+    flag1[:,:,:,1:3] = 0
 
 elif lpol == ['RR', 'LL', 'RL', 'LR']:
     rr = vsar[:,:,:,0]
@@ -60,20 +64,35 @@ elif lpol == ['RR', 'LL', 'RL', 'LR']:
 elif lpol == ['XX', 'YY']:
     xx = vsar[:,:,:,0]
     yy = vsar[:,:,:,1]
+    vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
+    vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
+    vsar1[:,:,:,2] =  0.                   # U = 1/2 (XY + YX)
+    vsar1[:,:,:,3] =  0.                   # V = 1/2j(XY - YX)
+    sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2) #np.linalg.norm()
+    sig1[:,:,:,0] = sig_norm
+    sig1[:,:,:,1] = sig_norm
+    #
+    # If flag_xx == 1 and flag_yy == 1: flag1 = 1
+    # If flag_xx == 0 and flag_yy == 0: flag1 = 0
+    # Otherwise flag1 = -1
+    #
+    truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+    truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
+    flag1[truth_tbl1] = 1
+    flag1[truth_tbl0] = 0
+    flag1[truth_tbls] = -1
+    flag1[:,:,:,2:] = 0
+
+elif lpol == ['XX', 'YY', 'XY', 'YX']:
+    xx = vsar[:,:,:,0]
+    yy = vsar[:,:,:,1]
     xy = vsar[:,:,:,2]
     yx = vsar[:,:,:,3]
     vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
     vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
     vsar1[:,:,:,2] =  0.5* (xy + yx)       # U = 1/2 (XY + YX)
     vsar1[:,:,:,3] = -0.5j*(xy - yx)       # V = 1/2j(XY - YX)
-
-elif lpol == ['XX', 'YY', 'XY', 'YX']:
-    xx = vsar[:,:,:,0]
-    yy = vsar[:,:,:,1]
-    vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
-    vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
-    vsar1[:,:,:,2] =  0.                   # U = 1/2 (XY + YX)
-    vsar1[:,:,:,3] =  0.                   # V = 1/2j(XY - YX)
 
 flag = vs.flag.data.compute()
 
@@ -102,9 +121,9 @@ ds1 = Dataset(
 
 vt = uv.VisTable(ds=ds1.sortby(["mjd", "antid1", "antid2"]))
 
-sys.exit(0)
+# sys.exit(0)
 
-vt.to_zarr(outzarr)   # ValueError: variable 'vis' already exists with
+# vt.to_zarr(outzarr)   # ValueError: variable 'vis' already exists with
                       # different dimension sizes:
                       # {existing_sizes} != {new_sizes}.
                       # to_zarr() only supports changing dimension sizes
