@@ -22,7 +22,7 @@ shape1 = list(vsar.shape)
 shape1[-1] = 4             # Extend pol axis to 4 to hold 4 Stokes parameters
 # New visibility ndarray for Stokes parameters
 vsar1 = np.zeros(shape1, dtype=complex)
-flag1 = np.zeros(shape1, dtype=np.int32)
+flag1 = -np.ones(shape1, dtype=np.int32)   # Assume ALL data recoverable (f=-1) 
 sig1 =  np.zeros(shape1, dtype=float)
 
 lpol = list(vs.stokes.data) # List of pols like ['RR', 'LL']
@@ -37,8 +37,15 @@ if lpol == ['RR', 'LL']:
     sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2) #np.linalg.norm()
     sig1[:,:,:,0] = sig_norm
     sig1[:,:,:,3] = sig_norm
-    flag1[:,:,:,0] = np.copy(flag[:,:,:,0])
-    flag1[:,:,:,3] = np.copy(flag[:,:,:,1])
+    #
+    # If flag_rr == 1 and flag_ll == 1: flag1 = 1
+    # If flag_rr == 0 and flag_ll == 0: flag1 = 0
+    # Otherwise flag1 = -1
+    #
+    truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+    truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    flag1[truth_tbl1] = 1 # ??????????????????
+    flag1[truth_tbl0] = 0 # ?????????????????
 
 elif lpol == ['RR', 'LL', 'RL', 'LR']:
     rr = vsar[:,:,:,0]
