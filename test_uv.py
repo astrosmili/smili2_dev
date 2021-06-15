@@ -18,6 +18,8 @@ vsar = vs.data.compute()   # Extract visibility ndarray
 flag = vs.flag.data.compute() 
 sig = vs.sigma.data.compute() 
 
+raise SystemExit
+
 shape1 = list(vsar.shape)
 shape1[-1] = 4             # Extend pol axis to 4 to hold 4 Stokes parameters
 # New visibility ndarray for Stokes parameters
@@ -39,17 +41,43 @@ if lpol == ['RR', 'LL']:
     sig1[:,:,:,3] = sig_norm
     #
     # If flag_rr == 1 and flag_ll == 1: flag1 = 1
-    # If flag_rr == 0 and flag_ll == 0: flag1 = 0
+    # If flag_rr == 0 or  flag_ll == 0: flag1 = 0
+    # If sig_norm is NaN, Inf, or 0:    flag1 = 0
     # Otherwise flag1 = -1
     #
     truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-    # truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
     truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
-    truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm)) # or 0!
+    truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
+    truth_tbls[sig_norm == 0] = True    # or sig_norm == 0
+    
     flag1[truth_tbl1] = 1
     flag1[truth_tbl0] = 0
-    flag1[truth_tbls] = 0  # Either has a bad sigma
-    flag1[:,:,:,1:3] = 0
+    flag1[truth_tbls] = 0  # Either one has a bad sigma
+    flag1[:,:,:,1:3] = 0   # Only I and V matter, Q and U do not.
+
+elif lpol == ['XX', 'YY']:
+    xx = vsar[:,:,:,0]
+    yy = vsar[:,:,:,1]
+    vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
+    vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
+    vsar1[:,:,:,2] =  0.                   # U = 1/2 (XY + YX)
+    vsar1[:,:,:,3] =  0.                   # V = 1/2j(XY - YX)
+    sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2) #np.linalg.norm()
+    sig1[:,:,:,:2] = sig_norm
+    #
+    # If flag_xx == 1 and flag_yy == 1: flag1 = 1
+    # If flag_xx == 0 or  flag_yy == 0: flag1 = 0
+    # If sig_norm is NaN, Inf, or 0:    flag1 = 0
+    # Otherwise flag1 = -1
+    #
+    truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+    truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
+    truth_tbls[sig_norm == 0] = True    # or sig_norm == 0
+    flag1[truth_tbl1] = 1
+    flag1[truth_tbl0] = 0
+    flag1[truth_tbls] = 0  # Either one has a bad sigma
+    flag1[:,:,:,2:] = 0    # Only I and Q matter, U and V do not.
 
 elif lpol == ['RR', 'LL', 'RL', 'LR']:
     rr = vsar[:,:,:,0]
@@ -61,28 +89,28 @@ elif lpol == ['RR', 'LL', 'RL', 'LR']:
     vsar1[:,:,:,2] = -0.5j*(rl - lr)       # U = 1/2j(RL - LR)
     vsar1[:,:,:,3] =  0.5* (rr - ll)       # V = 1/2 (RR - LL)
 
-elif lpol == ['XX', 'YY']:
-    xx = vsar[:,:,:,0]
-    yy = vsar[:,:,:,1]
-    vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
-    vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
-    vsar1[:,:,:,2] =  0.                   # U = 1/2 (XY + YX)
-    vsar1[:,:,:,3] =  0.                   # V = 1/2j(XY - YX)
-    sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2) #np.linalg.norm()
-    sig1[:,:,:,0] = sig_norm
-    sig1[:,:,:,1] = sig_norm
+    sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2 +
+                           sig[:,:,:,2]**2 + sig[:,:,:,3]**2) #np.linalg.norm()
+    sig1[:,:,:,:] = sig_norm
     #
-    # If flag_xx == 1 and flag_yy == 1: flag1 = 1
-    # If flag_xx == 0 and flag_yy == 0: flag1 = 0
+    # If flag_rr == 1 and flag_ll == 1: flag1 = 1
+    # If flag_rr == 0 or  flag_ll == 0: flag1 = 0
+    # If sig_norm is NaN, Inf, or 0:    flag1 = 0
     # Otherwise flag1 = -1
     #
-    truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-    truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+    ??????????????????????????????
+    truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1) ?????
+    truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
     truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
+    truth_tbls[sig_norm == 0] = True    # or sig_norm == 0
+    
     flag1[truth_tbl1] = 1
     flag1[truth_tbl0] = 0
-    flag1[truth_tbls] = -1
-    flag1[:,:,:,2:] = 0
+    flag1[truth_tbls] = 0  # Either one has a bad sigma
+    flag1[:,:,:,1:3] = 0   # Only I and V matter, Q and U do not.
+
+
+    
 
 elif lpol == ['XX', 'YY', 'XY', 'YX']:
     xx = vsar[:,:,:,0]
