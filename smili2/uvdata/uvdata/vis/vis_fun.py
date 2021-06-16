@@ -16,11 +16,13 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     pseudoI (bool): if True, calculate I from XX or YY or RR or LL. 
     
     """
+    import numpy as np
+    from xarray import Dataset
     from .vistab import VisTable
 
-    vsar = vs.data.compute()   # Extract visibility ndarray
-    flag = vs.flag.data.compute() 
-    sig = vs.sigma.data.compute() 
+    vsar = vistab.ds.vis.data       #.compute()   # Extract visibility ndarray
+    flag = vistab.ds.vis.flag.data  #.compute() 
+    sig =  vistab.ds.vis.sigma.data #.compute() 
 
     shape1 = list(vsar.shape)
     shape1[-1] = 4          # Extend pol axis to 4 to hold 4 Stokes parameters
@@ -29,7 +31,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     flag1 = -np.ones(shape1, dtype=np.int32) # Assume ALL data recoverable:f=-1
     sig1 =  np.zeros(shape1, dtype=float)
 
-    lpol = list(vs.stokes.data) # List of pols like ['RR', 'LL']
+    lpol = list(vistab.ds.vis.stokes.data) # List of pols like ['RR', 'LL']
 
     if lpol == ['RR', 'LL']:
         rr = vsar[:,:,:,0]
@@ -185,20 +187,20 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             vis=(["data", "if", "ch", "stokes"], vsar1)
         ),
         coords=dict(
-            mjd=("data", vs.mjd.data),  # .compute()),
-            dmjd=("data", vs.dmjd.data),
-            usec=("data", vs.usec.data),
-            vsec=("data", vs.vsec.data),
-            wsec=("data", vs.wsec.data),
-            antid1=("data", vs.antid1.data),
-            antid2=("data", vs.antid2.data),
+            mjd=("data", vistab.ds.vis.mjd.data),  # .compute()),
+            dmjd=("data", vistab.ds.vis.dmjd.data),
+            usec=("data", vistab.ds.vis.usec.data),
+            vsec=("data", vistab.ds.vis.vsec.data),
+            wsec=("data", vistab.ds.vis.wsec.data),
+            antid1=("data", vistab.ds.vis.antid1.data),
+            antid2=("data", vistab.ds.vis.antid2.data),
             flag=(["data", "if", "ch", "stokes"], flag1),
             sigma=(["data", "if", "ch", "stokes"], sig1),
             stokes=(["stokes"], ['I', 'Q', 'U', 'V']),
         )
     )
 
-    vt = uv.VisTable(ds=ds1.sortby(["mjd", "antid1", "antid2"]))
+    vt = VisTable(ds=ds1.sortby(["mjd", "antid1", "antid2"]))
 
     return vt
 

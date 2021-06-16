@@ -21,21 +21,24 @@ stokesid2name = { # Possible values of CRVAL3 in .uvfits headers
     "-8": "YX",
 }
 
-inuvfits = '/home/benkev/ALMA/3C273.coeff.fittp.uvfits'
-outzarr = '/home/benkev/ALMA/3C273_zarr'
+in_uvfits = '/home/benkev/ALMA/3C273.coeff.fittp.uvfits'
+out_zarr = '/home/benkev/ALMA/3C273_zarr'
 
 pseudoI = False
 
-uvd = uv.load_uvfits(inuvfits, outzarr)
+uvd = uv.load_uvfits(in_uvfits, out_zarr)
 
+vistab = uvd.vistab
 ds = uvd.vistab.ds
 vs = ds.vis
 
-vsar = vs.data.compute()   # Extract visibility ndarray
-flag = vs.flag.data.compute() 
-sig = vs.sigma.data.compute() 
+vsar = vs.data #.compute()   # Extract visibility ndarray
+flag = vs.flag.data #.compute() 
+sig = vs.sigma.data #.compute()
 
-# raise SystemExit
+vt = uv.switch_polrepr(vistab, 'stokes')
+
+raise SystemExit
 
 shape1 = list(vsar.shape)
 shape1[-1] = 4             # Extend pol axis to 4 to hold 4 Stokes parameters
