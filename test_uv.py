@@ -40,6 +40,7 @@ vt = uv.switch_polrepr(vistab, 'stokes')
 
 raise SystemExit
 
+
 shape1 = list(vsar.shape)
 shape1[-1] = 4             # Extend pol axis to 4 to hold 4 Stokes parameters
 # New visibility ndarray for Stokes parameters
