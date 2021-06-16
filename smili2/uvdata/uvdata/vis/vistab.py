@@ -3,7 +3,7 @@
 '''
 '''
 from ....util.zarrds import ZarrDataset
-
+from .vis_fun import switch_polrepr
 
 class VisTable(ZarrDataset):
     """
@@ -95,3 +95,22 @@ class VisTable(ZarrDataset):
             )
         )
         return ScanData(ds=ds)
+
+    
+
+    def switch_pol(polrepr, pseudoI=False):
+    """
+    This method changes representation of the polarization of
+    the visibility data in the visibility table (of class VisTable).
+    It returns a new instance of class VisTable where the polarization
+    is rendered according to the one provided in the polrepr string.
+    
+    Args:
+    
+    polrepr (str): polarization representation, "stokes" or "circ" or "linear".
+    pseudoI (bool): if True, calculate I from XX or YY or RR or LL. 
+    
+    """
+    vt_new = switch_polrepr(self, polrepr, pseudoI)
+
+    return vt_new
