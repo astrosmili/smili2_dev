@@ -87,3 +87,23 @@ class UVData(object):
         """
         from .vis.vistab2vis import vistab2visds
         vistab2visds(uvd=self, remove_vistab=remove_vistab)
+
+
+
+    def switch_polrepr(polrepr, pseudoI=False):
+        """
+        This method changes representation of the polarization of
+        the visibility data in the visibility table (of class VisTable).
+        It returns a new instance of the VisTable class where the polarization
+        is rendered according to the one provided in the polrepr string.
+
+        Args:
+
+        polrepr (str): polarization representation, 
+                       "stokes" or "circ" or "linear".
+        pseudoI (bool): if True, calculate I from XX or YY or RR or LL.
+        """
+        vt_new = __switch_polrepr(self, polrepr, pseudoI)
+
+        return vt_new
+        

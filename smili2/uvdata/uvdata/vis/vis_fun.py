@@ -205,6 +205,9 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     return vt
 
 
+__switch_polrepr = switch_polrepr
+
+
 
 
 
