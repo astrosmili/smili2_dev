@@ -6,5 +6,5 @@ from .ant import AntData
 from .freq import FreqData
 from .src import SrcData
 from .scan import ScanData
-from .vis import VisData, VisTable, switch_polrepr
+from .vis import VisData, VisTable, switch_polrepr, __switch_polrepr
 from .io import load_uvfits, load_zarr

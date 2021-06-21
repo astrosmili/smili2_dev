@@ -184,7 +184,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     #
     ds1 = Dataset(
         data_vars=dict(
-            vis=(["data", "if", "ch", "stokes"], vsar1)
+            vis=(["data", "spw", "ch", "stokes"], vsar1)
         ),
         coords=dict(
             mjd=("data", vistab.ds.vis.mjd.data),  # .compute()),
@@ -194,8 +194,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             wsec=("data", vistab.ds.vis.wsec.data),
             antid1=("data", vistab.ds.vis.antid1.data),
             antid2=("data", vistab.ds.vis.antid2.data),
-            flag=(["data", "if", "ch", "stokes"], flag1),
-            sigma=(["data", "if", "ch", "stokes"], sig1),
+            flag=(["data", "spw", "ch", "stokes"], flag1),
+            sigma=(["data", "spw", "ch", "stokes"], sig1),
             stokes=(["stokes"], ['I', 'Q', 'U', 'V']),
         )
     )

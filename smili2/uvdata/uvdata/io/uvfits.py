@@ -270,7 +270,7 @@ def uvfits2vistab(ghdu):
     # form a data array
     ds = Dataset(
         data_vars=dict(
-            vis=(["data", "if", "ch", "stokes"], vcmp)
+            vis=(["data", "spw", "ch", "stokes"], vcmp)
         ),
         coords=dict(
             mjd=("data", mjd),
@@ -280,8 +280,8 @@ def uvfits2vistab(ghdu):
             wsec=("data", wsec),
             antid1=("data", antid1),
             antid2=("data", antid2),
-            flag=(["data", "if", "ch", "stokes"], flag),
-            sigma=(["data", "if", "ch", "stokes"], sigma),
+            flag=(["data", "spw", "ch", "stokes"], flag),
+            sigma=(["data", "spw", "ch", "stokes"], sigma),
             stokes=(["stokes"], stokes),
         )
     )
@@ -407,9 +407,9 @@ def uvfits2freq(ghdu, antab, fqtab):
     # Make FreqTable
     dataset = Dataset(
         coords=dict(
-            if_freq=("if", reffreq+iffreq),
-            ch_bw=("if", chbw),
-            sideband=("if", sideband)
+            if_freq=("spw", reffreq+iffreq),
+            ch_bw=("spw", chbw),
+            sideband=("spw", sideband)
         ),
         attrs=dict(
             name=name,

@@ -247,8 +247,8 @@ def uvfits2vis(ghdu):
     # form a data array
     vis = DataArray(
         vcmp,
-        #        dims=["stokes", "if", "ch", "data"],
-        dims=["data", "if", "ch", "stokes"],
+        #        dims=["stokes", "spw", "ch", "data"],
+        dims=["data", "spw", "ch", "stokes"],
         coords=dict(
             mjd=("data", mjd),
             dmjd=("data", dmjd),
@@ -257,11 +257,11 @@ def uvfits2vis(ghdu):
             wsec=("data", wsec),
             antid1=("data", antid1),
             antid2=("data", antid2),
-            flag=(["data", "if", "ch", "stokes"], flag),
-            sigma=(["data", "if", "ch", "stokes"], sigma),
+            flag=(["data", "spw", "ch", "stokes"], flag),
+            sigma=(["data", "spw", "ch", "stokes"], sigma),
             stokes=(["stokes"], stokes),
-            #            freq=(["if", "ch"], self.freq.get_freqarr()),
-            #            chbw=(["if"], self.freq.table["ch_bw"].values)
+            #            freq=(["spw", "ch"], self.freq.get_freqarr()),
+            #            chbw=(["spw"], self.freq.table["ch_bw"].values)
         )
     )
 

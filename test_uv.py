@@ -197,7 +197,7 @@ elif lpol == ['XX', 'YY', 'XY', 'YX']:
 #
 ds1 = Dataset(
     data_vars=dict(
-        vis=(["data", "if", "ch", "stokes"], vsar1)
+        vis=(["data", "spw", "ch", "stokes"], vsar1)
     ),
     coords=dict(
         mjd=("data", vs.mjd.data),  # .compute()),
@@ -207,9 +207,9 @@ ds1 = Dataset(
         wsec=("data", vs.wsec.data),
         antid1=("data", vs.antid1.data),
         antid2=("data", vs.antid2.data),
-        flag=(["data", "if", "ch", "stokes"], flag1),
-        sigma=(["data", "if", "ch", "stokes"], sig1),
-        stokes=(["stokes"], ['I', 'Q', 'U', 'V']),
+        flag=(["data", "spw", "ch", "stokes"], flag1),
+        sigma=(["data", "spw", "ch", "stokes"], sig1),
+        stokes=(["stokes"], ['I', 'Q', 'U', 'V']),       # ?? change ????
     )
 )
 

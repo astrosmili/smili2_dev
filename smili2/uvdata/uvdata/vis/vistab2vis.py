@@ -63,7 +63,7 @@ def vistabscan2visdsscan(scangroup, outzarr):
     visds_scan = VisScanData(
         Dataset(
             data_vars=dict(
-                vis=(["time", "baseline", "if", "ch", "stokes"], zeros(
+                vis=(["time", "baseline", "spw", "ch", "stokes"], zeros(
                     [Nt, Nb, Nif, Nch, Nstokes], dtype=complex128))
             ),
             coords=dict(
@@ -75,9 +75,9 @@ def vistabscan2visdsscan(scangroup, outzarr):
                 usec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 vsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 wsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
-                sigma=(["time", "baseline", "if", "ch", "stokes"],
+                sigma=(["time", "baseline", "spw", "ch", "stokes"],
                        zeros((Nt, Nb, Nif, Nch, Nstokes), dtype=float64)),
-                flag=(["time", "baseline", "if", "ch", "stokes"],
+                flag=(["time", "baseline", "spw", "ch", "stokes"],
                       zeros((Nt, Nb, Nif, Nch, Nstokes), dtype=int32))
             ),
             attrs=dict(

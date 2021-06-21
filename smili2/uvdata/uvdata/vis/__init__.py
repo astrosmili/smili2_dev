@@ -3,4 +3,4 @@
 
 from .vis import VisData
 from .vistab import VisTable
-from .vis_fun import switch_polrepr
+from .vis_fun import switch_polrepr, __switch_polrepr

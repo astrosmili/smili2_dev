@@ -40,4 +40,4 @@ class FreqData(ZarrDataset):
             ch_bw = ds.ch_bw.data[iif]
             freqarr[iif] = if_freq + sideband * ch_bw * chidarr
 
-        ds["freq"] = (["if", "ch"], freqarr)
+        ds["freq"] = (["spw", "ch"], freqarr)

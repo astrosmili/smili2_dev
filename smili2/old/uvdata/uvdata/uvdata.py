@@ -71,8 +71,8 @@ class UVData(object):
         if self.data is None:
             raise ValueError("Visibility data is not set")
 
-        self.data["freq"] = (["if", "ch"], self.freq.get_freqarr())
-        self.data["chbw"] = (["if"], self.freq.table["ch_bw"].values)
+        self.data["freq"] = (["spw", "ch"], self.freq.get_freqarr())
+        self.data["chbw"] = (["spw"], self.freq.table["ch_bw"].values)
 
     def init_vis(self, utc, dutc=None):
         '''
@@ -134,7 +134,7 @@ class UVData(object):
         for antid1, antid2 in combinations(antids, 2):
             vis_tmp = DataArray(
                 zeros([Nutc, Nif, Nch, Nstokes], dtype="complex128"),
-                dims=["data", "if", "ch", "stokes"],
+                dims=["data", "spw", "ch", "stokes"],
                 coords=dict(
                     mjd=("data", mjd),
                     dmjd=("data", dmjd),
@@ -143,9 +143,9 @@ class UVData(object):
                     wsec=("data", zeros(Nutc, dtype="float64")),
                     antid1=("data", [antid1 for i in range(Nutc)]),
                     antid2=("data", [antid2 for i in range(Nutc)]),
-                    flag=(["data", "if", "ch", "stokes"], ones(
+                    flag=(["data", "spw", "ch", "stokes"], ones(
                         [Nutc, Nif, Nch, Nstokes], dtype="int32")),
-                    sigma=(["data", "if", "ch", "stokes"],
+                    sigma=(["data", "spw", "ch", "stokes"],
                            zeros([Nutc, Nif, Nch, Nstokes], dtype="float64")),
                     stokes=(["stokes"], stokes)
                 )

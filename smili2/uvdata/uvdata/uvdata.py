@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#from .vis.vis_fun import __switch_polrepr
+
 
 class UVData(object):
     # zarr file
@@ -103,7 +105,7 @@ class UVData(object):
                        "stokes" or "circ" or "linear".
         pseudoI (bool): if True, calculate I from XX or YY or RR or LL.
         """
-        vt_new = __switch_polrepr(self, polrepr, pseudoI)
+        vt_new = __switch_polrepr(self.vistab, polrepr, pseudoI)
 
         return vt_new
         
