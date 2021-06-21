@@ -372,7 +372,7 @@ def uvfits2freq(ghdu, antab, fqtab):
     from ....util.terminal import warn
     from ..freq import FreqData
     from xarray import Dataset
-    from numpy import float64
+    from numpy import float64, asarray
 
     # read meta data from antenna table
     reffreq = antab.header["FREQ"]  # reference frequency in GHz
@@ -387,9 +387,9 @@ def uvfits2freq(ghdu, antab, fqtab):
     nfrqsel = len(fqtab.data["FRQSEL"])
     if nfrqsel > 1:
         warn("Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
-    iffreq = np.asarray(float64(fqtab.data["IF FREQ"][0]))
-    chbw = np.asarray(float64(fqtab.data["CH WIDTH"][0]))
-    sideband = np.asarray(float64(fqtab.data["SIDEBAND"][0]))
+    iffreq = asarray(float64(fqtab.data["IF FREQ"][0]))
+    chbw = asarray(float64(fqtab.data["CH WIDTH"][0]))
+    sideband = asarray(float64(fqtab.data["SIDEBAND"][0]))
 
     # check the consistency between the number of if in FQ Table and GroupHDU
     if len(iffreq) != Nif:
