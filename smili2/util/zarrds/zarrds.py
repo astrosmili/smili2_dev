@@ -72,7 +72,7 @@ class ZarrDataset(object):
         """
         from xarray import open_zarr
 
-        self.ds.to_zarr(outzarr, mode="a", group=self.zarr_group)
+        self.ds.to_zarr(outzarr, mode="w", group=self.zarr_group)
 
         if reload:
             self.ds = open_zarr(outzarr, group=self.zarr_group)
