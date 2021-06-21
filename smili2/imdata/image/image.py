@@ -5,7 +5,11 @@ This is a sub-module of smili2 handling image data.
 '''
 __author__ = "Smili Developer Team"
 from ...util.zarrds import ZarrDataset
-
+from ... import util
+import copy
+import numpy as np
+import itertools
+import scipy.ndimage as sn
 
 class Image(ZarrDataset):
     '''
@@ -877,6 +881,61 @@ class Image(ZarrDataset):
 
         return output
 
+    ###########
+
+    def cpimage(self, im, save_totalflux=False, order=1):
+        outim = copy.deepcopy(self)
+
+        Ntime, Nfreq, Nstokes, Nx0, Ny0 = im.ds["image"].data.shape
+        dx0 = im.ds.dx
+        dy0 = im.ds.dy
+        Nxr0 = im.ds.ixref
+        Nyr0 = im.ds.iyref
+
+        dummy, dummy, dummy, Nx1, Ny1 = outim.ds["image"].data.shape
+        dx1 = outim.ds.dx
+        dy1 = outim.ds.dy
+        Nxr1 = outim.ds.ixref
+        Nyr1 =outim.ds.iyref
+
+        # output grid information
+        coord = np.zeros([2, Nx1 * Ny1])
+        xgrid = (np.arange(Nx1) + 1 - Nxr1) * dx1 / dx0 + Nxr0 - 1
+        ygrid = (np.arange(Ny1) + 1 - Nyr1) * dy1 / dy0 + Nyr0 - 1
+        x, y = np.meshgrid(xgrid, ygrid)
+        coord[0, :] = y.reshape(Nx1 * Ny1)
+        coord[1, :] = x.reshape(Nx1 * Ny1)
+
+        for itime, ifreq, istokes in itertools.product(range(Ntime), range(Nfreq), range(Nstokes)):
+            data = im.ds["image"].data[itime,ifreq,istokes]
+
+            outim.ds["image"].data[itime,ifreq,istokes] = sn.map_coordinates(
+            data, coord, order=order,
+            mode='constant', cval=0.0, prefilter=True).reshape([Ny1, Nx1]
+                                                               ) * dx1 * dy1 / dx0 / dy0
+
+            # Flux Scaling
+            if save_totalflux:
+                totalflux = im.totalflux(itime=itime, ifreq=ifreq, istokes=istokes)
+                outim.ds["image"].data[0,0,0] *= totalflux / \
+                    outim.totalflux(itime=itime, ifreq=ifreq, istokes=istokes)
+
+        #outim.update_fits()
+        return outim
+
+    def totalflux(self, fluxunit="Jy", itime=0, ifreq=0, istokes=0, ):
+        '''
+        Calculate the total flux density of the image
+
+        Args:
+          itime (integer): index for the image frame
+          istokes (integer): index for Stokes Parameter at which the total flux will be calculated
+          ifreq (integer): index for Frequency at which the total flux will be calculated
+        '''
+        return self.ds["image"].data[itime ,ifreq,istokes].sum() * util.fluxconv("Jy", fluxunit)
+
+
+    ###########
 
 def load_fits(infits, fitsfmt="casa"):
     """
