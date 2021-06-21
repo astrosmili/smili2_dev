@@ -387,9 +387,9 @@ def uvfits2freq(ghdu, antab, fqtab):
     nfrqsel = len(fqtab.data["FRQSEL"])
     if nfrqsel > 1:
         warn("Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
-    iffreq = float64(fqtab.data["IF FREQ"][0])
-    chbw = float64(fqtab.data["CH WIDTH"][0])
-    sideband = float64(fqtab.data["SIDEBAND"][0])
+    iffreq = np.asarray(float64(fqtab.data["IF FREQ"][0]))
+    chbw = np.asarray(float64(fqtab.data["CH WIDTH"][0]))
+    sideband = np.asarray(float64(fqtab.data["SIDEBAND"][0]))
 
     # check the consistency between the number of if in FQ Table and GroupHDU
     if len(iffreq) != Nif:
