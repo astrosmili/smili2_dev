@@ -10,6 +10,8 @@ import copy
 import numpy as np
 import itertools
 import scipy.ndimage as sn
+import h5py
+import tqdm
 
 class Image(ZarrDataset):
     '''
@@ -961,7 +963,6 @@ def load_fits(infits, fitsfmt="casa"):
     else:
         raise ValueError("fitsfmt=%s is not supported." % (fitsfmt))
 
-
 def gen_image(
         nx=128, ny=None,
         dx=2., dy=None,
@@ -995,7 +996,6 @@ def gen_image(
     from numpy import float64, int32, abs, isscalar, zeros
     from xarray import Dataset
     from ...util.units import conv
-
     #  dx & dy
     factor = conv(angunit, "rad")
     dxrad = abs(float64(dx*factor))
@@ -1063,3 +1063,40 @@ def gen_image(
     outim.set_freq(freq)
 
     return outim
+
+def load_hdf5(hdf5file):
+    '''
+    Read data from the movie hdf5 file
+    Args:
+        hdf5file (string): hdf5 file name. currently the format is based on 2021 ehtim library.
+    Returns:
+        imdata.Image object
+    '''
+
+    # Read hdf5
+    with h5py.File(hdf5file, "r") as file:
+        head = file['header']
+        mjd = int(head.attrs['mjd'].astype(str))
+        times = np.float64(file['times'][:]/24)+mjd
+        dx = np.float64(head.attrs['psize'].astype(str))* util.angconv("rad","deg")
+        ra = np.float64(head.attrs['ra'].astype(str))
+        dec =np.float64(head.attrs['dec'].astype(str))
+        freq = np.float64(head.attrs['rf'].astype(str))
+        polrep = head.attrs['polrep'].astype(str)
+        pol_prim = head.attrs['pol_prim'].astype(str)
+        source = head.attrs["source"].astype(str)
+        data = file[pol_prim][:] # time, y, x
+        Ntime, Ny, Nx = data.shape
+
+    # intialization of image object
+    mov = gen_image(nx=Nx, ny=Ny, dx=dx, dy=dx, ixref=None, iyref=None,\
+                                        angunit="uas", mjd=times, freq=[freq], ns=1,\
+                                        source=source, srccoord=None, instrument="EHT")
+
+    print("Construct movie frame")
+    print("Note: so far hdf5 includes single stokes (=I) and single band")
+    #print("Note: need to invert the y direction")
+    for itime in tqdm.tqdm(range(Ntime)):
+        mov.ds["image"].data[itime,0,0] =  data[itime, ::-1]
+
+    return mov

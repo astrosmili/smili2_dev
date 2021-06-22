@@ -11,4 +11,5 @@ __author__ = "Smili Developer Team"
 from .image import Image
 from .image import gen_image
 from .image import load_fits
+from .image import load_hdf5
 #from .image import load_fits_ehtim, load_fits_casa

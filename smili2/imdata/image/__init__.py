@@ -8,3 +8,4 @@ __author__ = "Smili Developer Team"
 from .image import Image
 from .image import gen_image
 from .image import load_fits
+from .image import load_hdf5
