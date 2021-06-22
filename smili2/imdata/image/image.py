@@ -937,6 +937,48 @@ class Image(ZarrDataset):
         return self.ds["image"].data[itime ,ifreq,istokes].sum() * util.fluxconv("Jy", fluxunit)
 
 
+
+    def to_hdf5_ehtim(self, file_name):
+        '''
+        Save image object in a hdf5 format
+
+        Args:
+            file_name (string): output hdf5 file name
+        '''
+        Ntime, Nfreq, Nstokes, Nx, Ny = self.ds.image.shape
+
+        if Nx!= Ny:
+            raise ValueError("Grid numbers of x, y coordinates are different Nx(=%d) != Ny(=%d)"%(Nx, Ny))
+        if len(list(set(self.ds.freq.data)))>1:
+            raise ValueError("This function cannot be used for multi epoch hdf5")
+        if len(list(set(self.ds.stokes.data)))>1 or self.ds.stokes.data[0]!="I":
+            raise ValueError("This function is only used for stokes I")
+
+        mjd = int(self.ds.mjd.data[0])
+        times = (self.ds.mjd.data- mjd)*24
+
+        with h5py.File(file_name, "w") as file:
+            head = file.create_dataset('header', (0,), dtype="S10")
+            head.attrs['mjd'] = np.string_(str(mjd))
+            head.attrs['psize'] = np.string_(str(Nx))
+            head.attrs['source'] = np.string_(str(self.ds.source))
+            head.attrs['ra'] = np.string_(str(self.ds.ra))
+            head.attrs['dec'] = np.string_(str(self.ds.dec))
+            head.attrs['rf'] = np.string_(str(self.ds.freq.data[0]))
+            # If including polarization the following term should be updated
+            head.attrs['polrep'] = np.string_('stokes')
+            head.attrs['pol_prim'] = np.string_(self.ds.stokes.data[0])
+            dset = file.create_dataset("times", data=times, dtype='f8')
+
+            # image table (Nt * Ny * Nx)
+            name = "I"
+            frames = np.stack([np.flipud(self.ds.image.data[it, 0, 0, :,:]) for it in range(Ntime)])
+            dset = file.create_dataset(name, data=frames, dtype='f8')
+
+
+
+
+
     ###########
 
 def load_fits(infits, fitsfmt="casa"):
