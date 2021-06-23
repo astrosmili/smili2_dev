@@ -4,7 +4,7 @@
 from numpy import int64
 
 # Dictionary for Stokes labels and their IDs in UVFITS
-stokesid2name = {
+polid2name = {
     "+1": "I",
     "+2": "Q",
     "+3": "U",
@@ -18,9 +18,9 @@ stokesid2name = {
     "-7": "XY",
     "-8": "YX",
 }
-stokesname2id = {}
-for key in stokesid2name.keys():
-    stokesname2id[stokesid2name[key]] = int64(key)
+polname2id = {}
+for key in polid2name.keys():
+    polname2id[polid2name[key]] = int64(key)
 
 
 def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
@@ -159,14 +159,14 @@ def uvfits2vistab(ghdu):
     from numpy import abs, sign, isinf, isnan, finfo, unique, modf, arange, min, diff
 
     # read visibilities
-    #    uvfits's original dimension is [data,dec,ra,if,ch,stokes,complex]
-    #    first, we reorganize the array to [stokes,if,ch]
-    Ndata, Ndec, Nra, dummy, dummy, Nstokes, dummy = ghdu.data.data.shape
+    #    uvfits's original dimension is [data,dec,ra,if,ch,pol,complex]
+    #    first, we reorganize the array to [pol,spw,ch]
+    Ndata, Ndec, Nra, dummy, dummy, Npol, dummy = ghdu.data.data.shape
     del dummy
     if Nra > 1 or Ndec > 1:
         warn("GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
         warn("We will pick up only the first one.")
-    vis_ghdu = ghdu.data.data[:, 0, 0, :]  # to [data,if,ch,stokes,complex]
+    vis_ghdu = ghdu.data.data[:, 0, 0, :]  # to [data,spw,ch,pol,complex]
 
     # get visibilities, errors, and flag (flagged, removed,)
     vcmp = float64(vis_ghdu[:, :, :, :, 0]) + 1j * \
@@ -263,14 +263,14 @@ def uvfits2vistab(ghdu):
              " for a single subarray.")
 
     # read polarizations
-    stokesids = ghdu.header["CDELT3"] * \
-        (arange(Nstokes)+1-ghdu.header["CRPIX3"])+ghdu.header["CRVAL3"]
-    stokes = [stokesid2name["%+d" % (stokesid)] for stokesid in stokesids]
+    polids = ghdu.header["CDELT3"] * \
+        (arange(Npol)+1-ghdu.header["CRPIX3"])+ghdu.header["CRVAL3"]
+    pol = [polid2name["%+d" % (polid)] for polid in polids]
 
     # form a data array
     ds = Dataset(
         data_vars=dict(
-            vis=(["data", "spw", "ch", "stokes"], vcmp)
+            vis=(["data", "spw", "ch", "pol"], vcmp)
         ),
         coords=dict(
             mjd=("data", mjd),
@@ -280,9 +280,9 @@ def uvfits2vistab(ghdu):
             wsec=("data", wsec),
             antid1=("data", antid1),
             antid2=("data", antid2),
-            flag=(["data", "spw", "ch", "stokes"], flag),
-            sigma=(["data", "spw", "ch", "stokes"], sigma),
-            stokes=(["stokes"], stokes),
+            flag=(["data", "spw", "ch", "pol"], flag),
+            sigma=(["data", "spw", "ch", "pol"], sigma),
+            pol=(["pol"], pol),
         )
     )
     return VisTable(ds=ds.sortby(["mjd", "antid1", "antid2"]))

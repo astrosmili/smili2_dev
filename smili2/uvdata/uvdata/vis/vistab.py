@@ -17,7 +17,7 @@ class VisTable(ZarrDataset):
     # Group Name of zarr file
     zarr_group = "visibility_table"
 
-    # Representation of the polarization: 'stokes', 'circ', or 'linear'
+    # Representation of the polarization: "stokes", "circ", or "linear"
     polrepr = None
 
     def set_scan(self, scangap=None, nseg=2.):

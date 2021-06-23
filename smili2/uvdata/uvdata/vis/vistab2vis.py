@@ -44,7 +44,7 @@ def vistabscan2visdsscan(scangroup, outzarr):
     scands = scangroup[1]
 
     # get data number
-    Ndata, Nif, Nch, Nstokes = scands.vis.shape
+    Ndata, Nspw, Nch, Npol = scands.vis.shape
     del Ndata
 
     # MJD index
@@ -63,22 +63,22 @@ def vistabscan2visdsscan(scangroup, outzarr):
     visds_scan = VisScanData(
         Dataset(
             data_vars=dict(
-                vis=(["time", "baseline", "spw", "ch", "stokes"], zeros(
-                    [Nt, Nb, Nif, Nch, Nstokes], dtype=complex128))
+                vis=(["time", "baseline", "spw", "ch", "pol"], zeros(
+                    [Nt, Nb, Nspw, Nch, Npol], dtype=complex128))
             ),
             coords=dict(
                 mjd=("time", mjdset),
                 dmjd=("time", scands.dmjd.data[mjdidx]),
                 antid1=("baseline", scands.antid1.data[blidx]),
                 antid2=("baseline", scands.antid2.data[blidx]),
-                stokes=("stokes", scands.stokes.data),
+                pol=("pol", scands.pol.data),
                 usec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 vsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
                 wsec=(["time", "baseline"], zeros((Nt, Nb), dtype=float64)),
-                sigma=(["time", "baseline", "spw", "ch", "stokes"],
-                       zeros((Nt, Nb, Nif, Nch, Nstokes), dtype=float64)),
-                flag=(["time", "baseline", "spw", "ch", "stokes"],
-                      zeros((Nt, Nb, Nif, Nch, Nstokes), dtype=int32))
+                sigma=(["time", "baseline", "spw", "ch", "pol"],
+                       zeros((Nt, Nb, Nspw, Nch, Npol), dtype=float64)),
+                flag=(["time", "baseline", "spw", "ch", "pol"],
+                      zeros((Nt, Nb, Nspw, Nch, Npol), dtype=int32))
             ),
             attrs=dict(
                 scanid=scanid

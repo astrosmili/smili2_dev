@@ -6,7 +6,7 @@ import smili2.uvdata as uv
 # uvd= uv.load_uvfits('/home/benkev/ALMA/alma/alma.alma.cycle7.10_noise.uvfits',
 #                '/home/benkev/ALMA/alma_zarr')
 
-stokesid2name = { # Possible values of CRVAL3 in .uvfits headers
+polid2name = { # Possible values of CRVAL3 in .uvfits headers
     "+1": "I",
     "+2": "Q",
     "+3": "U",
@@ -36,7 +36,7 @@ vsar = vs.data #.compute()   # Extract visibility ndarray
 flag = vs.flag.data #.compute() 
 sig = vs.sigma.data #.compute()
 
-vt = uv.switch_polrepr(vistab, 'stokes')
+vt = uv.switch_polrepr(vistab, "stokes")
 
 raise SystemExit
 
@@ -48,7 +48,7 @@ vsar1 = np.zeros(shape1, dtype=complex)
 flag1 = -np.ones(shape1, dtype=np.int32)   # Assume ALL data recoverable (f=-1) 
 sig1 =  np.zeros(shape1, dtype=float)
 
-lpol = list(vs.stokes.data) # List of pols like ['RR', 'LL']
+lpol = list(vs.pol.data) # List of pols like ['RR', 'LL']
 
 if lpol == ['RR', 'LL']:
     rr = vsar[:,:,:,0]
@@ -197,7 +197,7 @@ elif lpol == ['XX', 'YY', 'XY', 'YX']:
 #
 ds1 = Dataset(
     data_vars=dict(
-        vis=(["data", "spw", "ch", "stokes"], vsar1)
+        vis=(["data", "spw", "ch", "pol"], vsar1)
     ),
     coords=dict(
         mjd=("data", vs.mjd.data),  # .compute()),
@@ -207,9 +207,9 @@ ds1 = Dataset(
         wsec=("data", vs.wsec.data),
         antid1=("data", vs.antid1.data),
         antid2=("data", vs.antid2.data),
-        flag=(["data", "spw", "ch", "stokes"], flag1),
-        sigma=(["data", "spw", "ch", "stokes"], sig1),
-        stokes=(["stokes"], ['I', 'Q', 'U', 'V']),       # ?? change ????
+        flag=(["data", "spw", "ch", "pol"], flag1),
+        sigma=(["data", "spw", "ch", "pol"], sig1),
+        pol=(["pol"], ['I', 'Q', 'U', 'V']),
     )
 )
 

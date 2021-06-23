@@ -31,9 +31,19 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     flag1 = -np.ones(shape1, dtype=np.int32) # Assume ALL data recoverable:f=-1
     sig1 =  np.zeros(shape1, dtype=float)
 
-    lpol = list(vistab.ds.vis.stokes.data) # List of pols like ['RR', 'LL']
+    lpol = list(vistab.ds.vis.pol.data) # List of pols like ['RR', 'LL']
 
-    if lpol == ['RR', 'LL']:
+    if lpol == ['RR'] or lpol == ['LL'] or lpol == ['XX'] or lpol == ['YY']:
+        
+        vsar1[:,:,:,0] = np.copy(vsar[:,:,:,0])    # I ~ RR or LL or XX or YY
+        vsar1[:,:,:,1:] = 0.
+        sig1[:,:,:,0] = np.copy(sig[:,:,:,0])
+        sig1[:,:,:,1:] = 0.
+        flag1[:,:,:,0] = np.copy(flag[:,:,:,0])
+        flag1[:,:,:,1:] = 0.
+
+
+    elif lpol == ['RR', 'LL']:
         rr = vsar[:,:,:,0]
         ll = vsar[:,:,:,1]
         vsar1[:,:,:,0] = 0.5*(rr + ll)         # I = 1/2 (RR + LL)
@@ -184,7 +194,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     #
     ds1 = Dataset(
         data_vars=dict(
-            vis=(["data", "spw", "ch", "stokes"], vsar1)
+            vis=(["data", "spw", "ch", "pol"], vsar1)
         ),
         coords=dict(
             mjd=("data", vistab.ds.vis.mjd.data),  # .compute()),
@@ -194,9 +204,9 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             wsec=("data", vistab.ds.vis.wsec.data),
             antid1=("data", vistab.ds.vis.antid1.data),
             antid2=("data", vistab.ds.vis.antid2.data),
-            flag=(["data", "spw", "ch", "stokes"], flag1),
-            sigma=(["data", "spw", "ch", "stokes"], sig1),
-            stokes=(["stokes"], ['I', 'Q', 'U', 'V']),
+            flag=(["data", "spw", "ch", "pol"], flag1),
+            sigma=(["data", "spw", "ch", "pol"], sig1),
+            pol=(["pol"], ['I', 'Q', 'U', 'V']),
         )
     )
 
