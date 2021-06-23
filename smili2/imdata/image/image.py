@@ -925,7 +925,7 @@ class Image(ZarrDataset):
         #outim.update_fits()
         return outim
 
-    def totalflux(self, fluxunit="Jy", itime=0, ifreq=0, istokes=0, ):
+    def totalflux(self, fluxunit="Jy", itime=0, ifreq=0, istokes=0):
         '''
         Calculate the total flux density of the image
 
@@ -935,6 +935,10 @@ class Image(ZarrDataset):
           ifreq (integer): index for Frequency at which the total flux will be calculated
         '''
         return self.ds["image"].data[itime ,ifreq,istokes].sum() * util.fluxconv("Jy", fluxunit)
+
+    def lightcurve(self, fluxunit="Jy", ifreq=0, istokes=0):
+        Ntime, dummy, dummy, dummy, dummy = self.ds["image"].data.shape
+        return np.array([self.totalflux(fluxunit, itime, ifreq, istokes) for itime in range(Ntime)])
 
 
 
@@ -1106,7 +1110,7 @@ def gen_image(
 
     return outim
 
-def load_hdf5(hdf5file):
+def load_hdf5(hdf5file, angunit="uas"):
     '''
     Read data from the movie hdf5 file
     Args:
@@ -1120,7 +1124,7 @@ def load_hdf5(hdf5file):
         head = file['header']
         mjd = int(head.attrs['mjd'].astype(str))
         times = np.float64(file['times'][:]/24)+mjd
-        dx = np.float64(head.attrs['psize'].astype(str))* util.angconv("rad","deg")
+        dx = np.float64(head.attrs['psize'].astype(str))* util.angconv("rad",angunit)
         ra = np.float64(head.attrs['ra'].astype(str))
         dec =np.float64(head.attrs['dec'].astype(str))
         freq = np.float64(head.attrs['rf'].astype(str))
@@ -1132,7 +1136,7 @@ def load_hdf5(hdf5file):
 
     # intialization of image object
     mov = gen_image(nx=Nx, ny=Ny, dx=dx, dy=dx, ixref=None, iyref=None,\
-                                        angunit="uas", mjd=times, freq=[freq], ns=1,\
+                                        angunit=angunit, mjd=times, freq=[freq], ns=1,\
                                         source=source, srccoord=None, instrument="EHT")
 
     print("Construct movie frame")
