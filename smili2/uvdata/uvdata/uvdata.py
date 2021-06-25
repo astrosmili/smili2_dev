@@ -92,7 +92,7 @@ class UVData(object):
 
 
 
-    def switch_polrepr(polrepr, pseudoI=False):
+    def switch_polrepr(self, polrepr, pseudoI=False):
         """
         This method changes representation of the polarization of
         the visibility data in the visibility table (of class VisTable).
