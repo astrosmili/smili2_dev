@@ -28,7 +28,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     shape1[-1] = 4          # Extend pol axis to 4 to hold 4 Stokes parameters
     # New visibility ndarray for Stokes parameters
     vsar1 = np.zeros(shape1, dtype=complex)
-    flag1 = -np.ones(shape1, dtype=np.int32) # Assume ALL data recoverable:f=-1
+    flag1 = np.zeros(shape1, dtype=np.int32) # Assume ALL the data are bad
     sig1 =  np.zeros(shape1, dtype=float)
 
     lpol = list(vistab.ds.vis.pol.data) # List of pols like ['RR', 'LL']
@@ -56,15 +56,16 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         tt_all = np.logical_and(tt_all, sig[:,:,:,0] != 0)
         tt_all = np.logical_and(tt_all, sig[:,:,:,1] != 0)
 
-        vsar1[:,:,:,0] = 0.5*(rr[tt_all] + ll[tt_all])    # I = 1/2 (RR + LL)
-        vsar1[:,:,:,1] = 0.                               # Q = 1/2 (RL + LR)
-        vsar1[:,:,:,2] = 0.                               # U = 1/2j(RL - LR)
-        vsar1[:,:,:,3] = 0.5*(rr[tt_all] - ll[tt_all])    # V = 1/2 (RR - LL)
+        vsar1[tt_all,0] = 0.5*(rr[tt_all] + ll[tt_all])    # I = 1/2 (RR + LL)
+        vsar1[tt_all,1] = 0.                               # Q = 1/2 (RL + LR)
+        vsar1[tt_all,2] = 0.                               # U = 1/2j(RL - LR)
+        vsar1[tt_all,3] = 0.5*(rr[tt_all] - ll[tt_all])    # V = 1/2 (RR - LL)
+
         sig_norm = 0.5*np.sqrt(sig[tt_all,0]**2 + sig[tt_all,1]**2)
         sig1[tt_all,0] = sig_norm
         sig1[tt_all,3] = sig_norm
 
-        # Find where only RR or LL are unflagged: tt_ is "truth table"
+        # Find where either RR or LL are good: tt_ is "truth table"
         # "Finite" means "not Inf and not NaN"
 
         tt_rr = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] != 1)
@@ -85,97 +86,116 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         else:
             flag1[tt_rr,0] = 0
             flag1[tt_ll,0] = 0
+
             
-        
-        # #
-        # # If flag_rr == 1 and flag_ll == 1: flag1 = 1
-        # # If flag_rr == 0 or  flag_ll == 0: flag1 = 0
-        # # If sig_norm is NaN, Inf, or any of sigs is 0:    flag1 = 0
-        # # Otherwise flag1 = -1
-        # #
-        # truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        # truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
-
-        # truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
-        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,0] == 0)
-        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,1] == 0)
-
-        # flag1[truth_tbl1,:] = 1
-        # flag1[truth_tbl0,:] = 0
-        # flag1[truth_tbls,:] = 0  # rr or ll has a bad sigma
-        # flag1[:,:,:,1] = 0       # Only I and V matter, Q and U do not.
-        # flag1[:,:,:,2] = 0       # Only I and V matter, Q and U do not.
-
-
     elif lpol == ['XX', 'YY']:
+
         xx = vsar[:,:,:,0]
         yy = vsar[:,:,:,1]
-        vsar1[:,:,:,0] =  0.5* (xx + yy)       # I = 1/2 (XX + YY)
-        vsar1[:,:,:,1] =  0.5* (xx - yy)       # Q = 1/2 (XX - YY)
-        vsar1[:,:,:,2] =  0.                   # U = 1/2 (XY + YX)
-        vsar1[:,:,:,3] =  0.                   # V = 1/2j(XY - YX)
-        sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2)
-        sig1[:,:,:,0] = sig_norm
-        sig1[:,:,:,1] = sig_norm
-        #
-        # If flag_xx == 1 and flag_yy == 1: flag1 = 1
-        # If flag_xx == 0 or  flag_yy == 0: flag1 = 0
-        # If sig_norm is NaN, Inf, or any of sigs is 0:    flag1 = 0
-        # Otherwise flag1 = -1
-        #
-        truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        truth_tbl0 = np.logical_and(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+        
+        # Find where both XX and YY are good: tt_ is "truth table"
+        # "Finite" means "not Inf and not NaN"
 
-        truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,0] == 0)
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,1] == 0)
+        tt_all = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,0]))
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,1]))
+        tt_all = np.logical_and(tt_all, sig[:,:,:,0] != 0)
+        tt_all = np.logical_and(tt_all, sig[:,:,:,1] != 0)
 
-        flag1[truth_tbl1,:] = 1
-        flag1[truth_tbl0,:] = 0
-        flag1[truth_tbls,:] = 0  # xx or yy has a bad sigma
-        flag1[:,:,:,2] = 0       # Only I and Q matter, U and V do not.
-        flag1[:,:,:,3] = 0       # Only I and Q matter, U and V do not.
+        vsar1[tt_all,0] = 0.5*(xx[tt_all] + yy[tt_all])    # I = 1/2 (XX + YY)
+        vsar1[tt_all,1] = 0.5*(xx[tt_all] - yy[tt_all])    # Q = 1/2 (RL + LR)
+        vsar1[tt_all,2] = 0.                               # U = 1/2j(RL - LR)
+        vsar1[tt_all,3] = 0.                               # V = 1/2 (XX - YY)
+
+        sig_norm = 0.5*np.sqrt(sig[tt_all,0]**2 + sig[tt_all,1]**2)
+        sig1[tt_all,0] = sig_norm
+        sig1[tt_all,3] = sig_norm
+
+        # Find where either XX or YY are good: tt_ is "truth table"
+        # "Finite" means "not Inf and not NaN"
+
+        tt_xx = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] != 1)
+        tt_xx = np.logical_and(tt_xx, np.isfinite(sig[:,:,:,0]))
+        tt_xx = np.logical_and(tt_xx, sig[:,:,:,0] != 0)
+        vsar1[tt_xx,0] = xx[tt_xx]             # I = XX
+        vsar1[tt_xx,3] = 0.                    # V = 0
+        
+        tt_yy = np.logical_and(flag[:,:,:,0] != 1, flag[:,:,:,1] == 1)
+        tt_yy = np.logical_and(tt_yy, np.isfinite(sig[:,:,:,1]))
+        tt_yy = np.logical_and(tt_yy, sig[:,:,:,1] != 0)
+        vsar1[tt_yy,0] = yy[tt_yy]             # I = YY
+        vsar1[tt_yy,3] = 0.                    # V = 0
+
+        if pseudoI:
+            flag1[tt_xx,0] = 1
+            flag1[tt_yy,0] = 1
+        else:
+            flag1[tt_xx,0] = 0
+            flag1[tt_yy,0] = 0
 
 
     elif lpol == ['RR', 'LL', 'RL', 'LR']:
+        
         rr = vsar[:,:,:,0]
         ll = vsar[:,:,:,1]
         rl = vsar[:,:,:,2]
         lr = vsar[:,:,:,3]
-        vsar1[:,:,:,0] =  0.5* (rr + ll)       # I = 1/2 (RR + LL)
-        vsar1[:,:,:,1] =  0.5* (rl + lr)       # Q = 1/2 (RL + LR)
-        vsar1[:,:,:,2] = -0.5j*(rl - lr)       # U = 1/2j(RL - LR)
-        vsar1[:,:,:,3] =  0.5* (rr - ll)       # V = 1/2 (RR - LL)
 
-        sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2 +
-                               sig[:,:,:,2]**2 + sig[:,:,:,3]**2)
-        sig1[:,:,:,:] = sig_norm
-        #
-        # If flag_rr == 1 & flag_ll == 1 &
-        #    flag_rl == 1 & flag_lr == 1: flag1 = 1
-        # If flag_rr == 0 | flag_ll == 0 |
-        #    flag_rl == 0 | flag_lr == 0: flag1 = 0
-        # If sig_norm is NaN, Inf, or any of sigs is 0:    flag1 = 0
-        # Otherwise flag1 = -1
-        #
+        # Find where both XX and YY are good: tt_ is "truth table"
+        # "Finite" means "not Inf and not NaN"
 
-        truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        truth_tbl1 = np.logical_and(truth_tbl1, flag[:,:,:,2] == 1)
-        truth_tbl1 = np.logical_and(truth_tbl1, flag[:,:,:,3] == 1)
+        tt_all = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        tt_all = np.logical_and(tt_all, flag[:,:,:,2] == 1)
+        tt_all = np.logical_and(tt_all, flag[:,:,:,3] == 1)
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,0]))
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,1]))
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,1]))
+        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,3]))
+        tt_all = np.logical_and(tt_all, sig[:,:,:,0] != 0)
+        tt_all = np.logical_and(tt_all, sig[:,:,:,1] != 0)
+        tt_all = np.logical_and(tt_all, sig[:,:,:,2] != 0)
+        tt_all = np.logical_and(tt_all, sig[:,:,:,3] != 0)
 
-        truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
-        truth_tbl0 = np.logical_or(truth_tbl0, flag[:,:,:,2] == 0)
-        truth_tbl0 = np.logical_or(truth_tbl0, flag[:,:,:,3] == 0)
 
-        truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,0] == 0)
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,1] == 0)
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,2] == 0)
-        truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,3] == 0)
 
-        flag1[truth_tbl1,:] = 1
-        flag1[truth_tbl0,:] = 0
-        flag1[truth_tbls,:] = 0  # rr or ll or rl or lr has a bad sigma
+
+
+
+
+        # vsar1[:,:,:,0] =  0.5* (rr + ll)       # I = 1/2 (RR + LL)
+        # vsar1[:,:,:,1] =  0.5* (rl + lr)       # Q = 1/2 (RL + LR)
+        # vsar1[:,:,:,2] = -0.5j*(rl - lr)       # U = 1/2j(RL - LR)
+        # vsar1[:,:,:,3] =  0.5* (rr - ll)       # V = 1/2 (RR - LL)
+
+        # sig_norm = 0.5*np.sqrt(sig[:,:,:,0]**2 + sig[:,:,:,1]**2 +
+        #                        sig[:,:,:,2]**2 + sig[:,:,:,3]**2)
+        # sig1[:,:,:,:] = sig_norm
+        # #
+        # # If flag_rr == 1 & flag_ll == 1 &
+        # #    flag_rl == 1 & flag_lr == 1: flag1 = 1
+        # # If flag_rr == 0 | flag_ll == 0 |
+        # #    flag_rl == 0 | flag_lr == 0: flag1 = 0
+        # # If sig_norm is NaN, Inf, or any of sigs is 0:    flag1 = 0
+        # # Otherwise flag1 = -1
+        # #
+
+        # truth_tbl1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        # truth_tbl1 = np.logical_and(truth_tbl1, flag[:,:,:,2] == 1)
+        # truth_tbl1 = np.logical_and(truth_tbl1, flag[:,:,:,3] == 1)
+
+        # truth_tbl0 = np.logical_or(flag[:,:,:,0] == 0, flag[:,:,:,1] == 0)
+        # truth_tbl0 = np.logical_or(truth_tbl0, flag[:,:,:,2] == 0)
+        # truth_tbl0 = np.logical_or(truth_tbl0, flag[:,:,:,3] == 0)
+
+        # truth_tbls = np.logical_or(np.isnan(sig_norm), np.isinf(sig_norm))
+        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,0] == 0)
+        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,1] == 0)
+        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,2] == 0)
+        # truth_tbls = np.logical_or(truth_tbls, sig[:,:,:,3] == 0)
+
+        # flag1[truth_tbl1,:] = 1
+        # flag1[truth_tbl0,:] = 0
+        # flag1[truth_tbls,:] = 0  # rr or ll or rl or lr has a bad sigma
 
 
 
