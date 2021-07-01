@@ -20,21 +20,54 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     from xarray import Dataset
     from .vistab import VisTable
 
-    vsar = vistab.ds.vis.data       #.compute()   # Extract visibility ndarray
-    flag = vistab.ds.vis.flag.data  #.compute() 
-    sig =  vistab.ds.vis.sigma.data.compute() 
+    #
+    # Sanity check
+    #
+    if polrepr != "stokes" and polrepr != "circ" and polrepr != "linear":
+        print('ERROR. switch_polrepr(): parameter polrepr must be "stokes" ' \
+              'or "circ" or "linear"')
+        return None
+    
 
-    shape1 = list(vsar.shape)
+    lpol = list(vistab.ds.vis.pol.data) # List of pols like ['RR', 'LL']
+    lpol = [pol.upper() for pol in lpol]
+    set_pol = set(lpol)
+
+    # Check if the visibolity is already in the requested format
+    if polrepr == "stokes" and lpol[0] in ['I', 'Q', 'U', 'V']:
+        return vistab # Return the same vistab which is already in Stokes format
+
+    if polrepr == "circ" and lpol[0] in ['RR', 'LL', 'RL', 'LR']:
+        return vistab # Return the same vistab which is already in circular
+
+    if polrepr == "linear" and lpol[0] == ['XX', 'YY', 'XY', 'YX']:
+        return vistab # Return the same vistab which is already in linear
+
+    #
+    # Extract visibility, flag, and sigma arrays
+    #
+    vsar = vistab.ds.vis.data       #.compute()   # Extract visibility array
+    flag = vistab.ds.vis.flag.data  #.compute() 
+    sig =  vistab.ds.vis.sigma.data.compute()     # Extract sigma array
+
+    shape1 = list(vsar.shape)  # Dimensions [data, spw, ch, pol]
     shape1[-1] = 4          # Extend pol axis to 4 to hold 4 Stokes parameters
     
-    # New visibility ndarray for Stokes parameters
+    # New visibility ndarrays for the visibility, flags and sigmas
     vsar1 = np.zeros(shape1, dtype=complex)
     flag1 = np.zeros(shape1, dtype=np.int32) # Assume ALL the data are bad
     sig1 =  np.zeros(shape1, dtype=float)
 
-    lpol = list(vistab.ds.vis.pol.data) # List of pols like ['RR', 'LL']
+    # New polarization coordinates dependent on the requested representation
+    if polrepr == "stokes":
+        lpol1 = ['I', 'Q', 'U', 'V']
+    elif polrepr == "circ":
+        lpol1 = ['RR', 'LL', 'RL', 'LR']
+    elif polrepr == "linear":
+        lpol1 = ['XX', 'YY', 'XY', 'YX']
 
-    if lpol == ['RR'] or lpol == ['LL'] or lpol == ['XX'] or lpol == ['YY']:
+    if polrepr == "stokes" and \
+       (lpol == ['RR'] or lpol == ['LL'] or lpol == ['XX'] or lpol == ['YY']):
         
         vsar1[:,:,:,0] = np.copy(vsar[:,:,:,0])    # I ~ RR or LL or XX or YY
         #vsar1[:,:,:,1:] = 0.
@@ -44,7 +77,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         #flag1[:,:,:,1:] = 0.
 
 
-    elif lpol == ['RR', 'LL']:
+    elif polrepr == "stokes" and set_pol == set(['RR', 'LL']):
+        
         rr = vsar[:,:,:,0]
         ll = vsar[:,:,:,1]
 
@@ -103,7 +137,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             flag1[tt_ll,0] = 1
 
             
-    elif lpol == ['XX', 'YY']:
+    elif polrepr == "stokes" and set_pol == set(['XX', 'YY']):
+        
         xx = vsar[:,:,:,0]
         yy = vsar[:,:,:,1]
 
@@ -161,31 +196,44 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             flag1[tt_xx,0] = 1
             flag1[tt_yy,0] = 1
 
-
-
-# !!!!!!!!!!!!!!!!!!!!!!!!!!! CORRECT CODE BELOW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
-    elif lpol == ['RR', 'LL', 'RL', 'LR']:
+    elif polrepr == "stokes" and set_pol == set(['RR', 'LL', 'RL', 'LR']):
         
         rr = vsar[:,:,:,0]
         ll = vsar[:,:,:,1]
         rl = vsar[:,:,:,2]
         lr = vsar[:,:,:,3]
 
-        # Find where RR, LL, RL, and LR are good: tt_ is "truth table"
-        # "Finite" means "not Inf and not NaN"
+        # tt_fnz: where sigmas are finite and non-zero
+        tt_fnz = np.logical_and(np.isfinite(sig[:,:,:,0]),
+                                np.isfinite(sig[:,:,:,1]))
+        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,2]))
+        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,3]))
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,0] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,1] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,2] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,3] != 0)
 
-        tt_all = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        tt_all = np.logical_and(tt_all, flag[:,:,:,2] == 1)
-        tt_all = np.logical_and(tt_all, flag[:,:,:,3] == 1)
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,0]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,1]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,2]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,3]))
-        tt_all = np.logical_and(tt_all, sig[:,:,:,0] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,1] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,2] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,3] != 0)
+        # tt_all1: where RR, LL, RL, and LR are good and
+        #          all flags are 1 and sigmas are finite and non-zero
+        tt_all1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,2] == 1)
+        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,3] == 1)
+        tt_all1 = np.logical_and(tt_all1, tt_fnz)
+
+        # tt_all2: where RR, LL, RL, and LR are recoverable and
+        #          all flags are -1 and sigmas are finite and non-zero
+        tt_all2 = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
+        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,2] == -1)
+        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,3] == -1)
+        tt_all2 = np.logical_and(tt_all2, tt_fnz)
+
+        # tt_all: where RR, LL, RL, and LR are either good or recoverable:
+        #         all flags are 1 or -1 and sigmas are finite and non-zero
+        tt_all = np.logical_or(tt_all1, tt_all2)
+
+        flag1[tt_all1,:] = 1
+        flag1[tt_all2,:] = -1
 
         vsar1[tt_all,0] =  0.5* (rr[tt_all] + ll[tt_all])   # I = 1/2 (RR + LL)
         vsar1[tt_all,1] =  0.5* (rl[tt_all] + lr[tt_all])   # Q = 1/2 (RL + LR)
@@ -195,8 +243,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         sig_norm = 0.5*np.sqrt(sig[tt_all,0]**2 + sig[tt_all,1]**2 +
                                sig[tt_all,2]**2 + sig[tt_all,3]**2)
         sig1[tt_all,:] = sig_norm
-
-        flag1[tt_all,:] = 1
 
         if pseudoI:
             # Find where RL and LR are bad, but
@@ -212,7 +258,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             tt_rr = np.logical_and(tt_rr, np.isfinite(sig[:,:,:,0]))
             tt_rr = np.logical_and(tt_rr, sig[:,:,:,0] != 0)
             vsar1[tt_rr,0] = rr[tt_rr]             # I = RR
-            #vsar1[tt_rr,1:] = 0.                   # V = 0
+            #vsar1[tt_rr,1:] = 0.                  # V = 0
 
             # Only LL is good
             tt_ll = np.logical_and(flag[:,:,:,0] != 1, flag[:,:,:,1] == 1)
@@ -220,34 +266,50 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             tt_ll = np.logical_and(tt_ll, np.isfinite(sig[:,:,:,1]))
             tt_ll = np.logical_and(tt_ll, sig[:,:,:,1] != 0)
             vsar1[tt_ll,0] = ll[tt_ll]             # I = LL
-            #vsar1[tt_ll,1:] = 0.                   # V = 0
+            #vsar1[tt_ll,1:] = 0.                  # V = 0
 
             flag1[tt_rr,0] = 1
             flag1[tt_ll,0] = 1
 
-
             
-    elif lpol == ['XX', 'YY', 'XY', 'YX']:
+    elif polrepr == "stokes" and set_pol == set(['XX', 'YY', 'XY', 'YX']):
+        
         xx = vsar[:,:,:,0]
         yy = vsar[:,:,:,1]
         xy = vsar[:,:,:,2]
         yx = vsar[:,:,:,3]
 
-        # Find where XX, YY, XY, and YX are good: tt_ is "truth table"
-        # "Finite" means "not Inf and not NaN"
+        # tt_fnz: where all sigmas are finite and non-zero
+        tt_fnz = np.logical_and(np.isfinite(sig[:,:,:,0]),
+                                np.isfinite(sig[:,:,:,1]))
+        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,2]))
+        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,3]))
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,0] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,1] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,2] != 0)
+        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,3] != 0)
 
-        tt_all = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        tt_all = np.logical_and(tt_all, flag[:,:,:,2] == 1)
-        tt_all = np.logical_and(tt_all, flag[:,:,:,3] == 1)
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,0]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,1]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,2]))
-        tt_all = np.logical_and(tt_all, np.isfinite(sig[:,:,:,3]))
-        tt_all = np.logical_and(tt_all, sig[:,:,:,0] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,1] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,2] != 0)
-        tt_all = np.logical_and(tt_all, sig[:,:,:,3] != 0)
-      
+        # tt_all1: where XX, YY, XY, and YX are good and
+        #          all flags are 1 and sigmas are finite and non-zero
+        tt_all1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,2] == 1)
+        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,3] == 1)
+        tt_all1 = np.logical_and(tt_all1, tt_fnz)
+
+        # tt_all2: where XX, YY, XY, and YX are recoverable and
+        #          all flags are -1 and sigmas are finite and non-zero
+        tt_all2 = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
+        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,2] == -1)
+        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,3] == -1)
+        tt_all2 = np.logical_and(tt_all2, tt_fnz)
+
+        # tt_all: where XX, YY, XY, and YX are either good or recoverable:
+        #         both flags are 1 or -1 and sigmas are finite and non-zero
+        tt_all = np.logical_or(tt_all1, tt_all2)
+
+        flag1[tt_all1,:] = 1
+        flag1[tt_all2,:] = -1
+
         vsar1[tt_all,0] =  0.5* (xx[tt_all] + yy[tt_all])  # I = 1/2 (XX + YY)
         vsar1[tt_all,1] =  0.5* (xx[tt_all] - yy[tt_all])  # Q = 1/2 (XX - YY)
         vsar1[tt_all,2] =  0.5* (xy[tt_all] + yx[tt_all])  # U = 1/2 (XY + YX)
@@ -273,7 +335,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             tt_xx = np.logical_and(tt_xx, np.isfinite(sig[:,:,:,0]))
             tt_xx = np.logical_and(tt_xx, sig[:,:,:,0] != 0)
             vsar1[tt_xx,0] = rr[tt_xx]             # I = RR
-            #vsar1[tt_xx,1:] = 0.                   # V = 0
+            #vsar1[tt_xx,1:] = 0.                  # V = 0
 
             # Only YY is good
             tt_yy = np.logical_and(flag[:,:,:,0] != 1, flag[:,:,:,1] == 1)
@@ -281,7 +343,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             tt_yy = np.logical_and(tt_yy, np.isfinite(sig[:,:,:,1]))
             tt_yy = np.logical_and(tt_yy, sig[:,:,:,1] != 0)
             vsar1[tt_yy,0] = ll[tt_yy]             # I = LL
-            #vsar1[tt_yy,1:] = 0.                   # V = 0
+            #vsar1[tt_yy,1:] = 0.                  # V = 0
 
             flag1[tt_xx,0] = 1
             flag1[tt_yy,0] = 1
@@ -306,7 +368,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
             antid2=("data", vistab.ds.vis.antid2.data),
             flag=(["data", "spw", "ch", "pol"], flag1),
             sigma=(["data", "spw", "ch", "pol"], sig1),
-            pol=(["pol"], ['I', 'Q', 'U', 'V']),
+            pol=(["pol"], lpol1),
         )
     )
 
