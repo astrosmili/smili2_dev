@@ -204,47 +204,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         rl = vsar[:,:,:,2]
         lr = vsar[:,:,:,3]
 
-        # tt_fnz1: where first two sigmas are finite and non-zero,
-        #          while one or both of the other two are bad
-        tt_fnz01 = np.logical_and(np.isfinite(sig[:,:,:,0]),
-                                  np.isfinite(sig[:,:,:,1]))
-        tt_fnz01 = np.logical_and(tt_fnz01, sig[:,:,:,0] != 0)
-        tt_fnz01 = np.logical_and(tt_fnz01, sig[:,:,:,1] != 0) # 0th & 1st good
-        
-        tt_bz23 = np.logical_and(np.isfinite(sig[:,:,:,2]),
-                                 np.isfinite(sig[:,:,:,3]))
-        tt_bz23 = np.logical_and(tt_bz23, sig[:,:,:,2] != 0)
-        tt_bz23 = np.logical_and(tt_bz23, sig[:,:,:,3] != 0)  # 2nd & 3rd good
-
-        tt_bz23 = np.logical_not(tt_bz23) # Either or both 2nd & 3rd are bad
-        
-        tt_fnz1 = np.logical_and(tt_fnz01, tt_bz23)
-        
-
-        
-        # tt_maj1: where ALL RR, LL, RL, and LR are good and
-        #          ALL flags are 1 and ALL sigmas are finite and non-zero
-        tt_maj01 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        tt_maj23 = np.logical_and(flag[:,:,:,2] == 1, flag[:,:,:,3] == 1)
-        tt_maj23 = np.logical_not(tt_maj23)
-        tt_maj1 = np.logical_and(tt_maj01, tt_maj23)
-        tt_maj1 = np.logical_and(tt_maj1, tt_fnz1)
-        
-        tt_maj23 = np.logical_and(tt_maj1, flag[:,:,:,2] == 1)
-        tt_maj1 = np.logical_and(tt_maj1, flag[:,:,:,3] == 1)
-        tt_maj1 = np.logical_and(tt_maj1, tt_fnz)
-
-        # tt_maj2: where ALL RR, LL, RL, and LR are recoverable and
-        #          ALL flags are -1 and sigmas are finite and non-zero
-        tt_maj2 = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, flag[:,:,:,2] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, flag[:,:,:,3] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, tt_fnz)
-
-
-#-------------------------------------------------------------------
-
-        
         # tt_fnz: where ALL sigmas are finite and non-zero
         tt_fnz = np.logical_and(        np.isfinite(sig[:,:,:,0]),
                                         np.isfinite(sig[:,:,:,1]))
@@ -255,7 +214,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,1] != 0)
         tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,2] != 0)
         tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,3] != 0)
-
 
         # tt_all1: where ALL RR, LL, RL, and LR are good and
         #          ALL flags are 1 and ALL sigmas are finite and non-zero
@@ -274,7 +232,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         # tt_all: where RR, LL, RL, and LR are either good or recoverable:
         #         all flags are 1 or -1 and sigmas are finite and non-zero
         tt_all = np.logical_or(tt_all1, tt_all2)
-
 
         flag1[tt_all1,:] = 1
         flag1[tt_all2,:] = -1
