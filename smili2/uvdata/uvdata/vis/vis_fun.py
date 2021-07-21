@@ -204,31 +204,62 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         rl = vsar[:,:,:,2]
         lr = vsar[:,:,:,3]
 
-        # tt_fnz1: where first two sigmas are finite and non-zero,
-        #          while one or both of the other two are bad
-        tt_fnz01 = np.logical_and(np.isfinite(sig[:,:,:,0]),
+        #
+        # Create truth table tt_sg01b23:
+        #   where first two sigmas are finite and non-zero,
+        #   while one or both of the other two are bad
+        #
+        
+        # tt_sg01: where first two sigmas are good (finite and non-zero)
+        tt_sg01 = np.logical_and(np.isfinite(sig[:,:,:,0]),
                                   np.isfinite(sig[:,:,:,1]))
-        tt_fnz01 = np.logical_and(tt_fnz01, sig[:,:,:,0] != 0)
-        tt_fnz01 = np.logical_and(tt_fnz01, sig[:,:,:,1] != 0) # 0th & 1st good
+        tt_sg01 = np.logical_and(tt_sg01, sig[:,:,:,0] != 0)
+        tt_sg01 = np.logical_and(tt_sg01, sig[:,:,:,1] != 0) # 0th & 1st good
         
-        tt_bz23 = np.logical_and(np.isfinite(sig[:,:,:,2]),
-                                 np.isfinite(sig[:,:,:,3]))
-        tt_bz23 = np.logical_and(tt_bz23, sig[:,:,:,2] != 0)
-        tt_bz23 = np.logical_and(tt_bz23, sig[:,:,:,3] != 0)  # 2nd & 3rd good
+        # tt_sg23: where two last sigmas are good (finite and non-zero)
+        tt_sg23 = np.logical_and(np.isfinite(sig[:,:,:,2]),
+                                  np.isfinite(sig[:,:,:,3]))
+        tt_sg23 = np.logical_and(tt_sg23, sig[:,:,:,2] != 0)
+        tt_sg23 = np.logical_and(tt_sg23, sig[:,:,:,3] != 0) # 2nd & 3rd good
 
-        tt_bz23 = np.logical_not(tt_bz23) # Either or both 2nd & 3rd are bad
+        # tt_sb23: where two last sigmas are bad OR zero,
+        tt_sb23 = np.logical_not(tt_sg23) # One or both 2nd & 3rd are bad
         
-        tt_fnz1 = np.logical_and(tt_fnz01, tt_bz23)
-        
+        # tt_sg01b23: where first two sigmas are good (finite and non-zero),
+        #               while one or both of the other two are bad
+        tt_sg01b23 = np.logical_and(tt_sg01, tt_sb23)
 
         
-        # tt_maj1: where ALL RR, LL, RL, and LR are good and
-        #          ALL flags are 1 and ALL sigmas are finite and non-zero
-        tt_maj01 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        tt_maj23 = np.logical_and(flag[:,:,:,2] == 1, flag[:,:,:,3] == 1)
-        tt_maj23 = np.logical_not(tt_maj23)
-        tt_maj1 = np.logical_and(tt_maj01, tt_maj23)
-        tt_maj1 = np.logical_and(tt_maj1, tt_fnz1)
+        #
+        # Create truth table tt_fg01b23:
+        #   where first two flags are good (== 1),
+        #   while one or both of the other two are bad (!= 1)
+        #
+        
+        # tt_fg01: where first two flags are good (== 1)
+        tt_fg01 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        
+        # tt_fg23: where last two flags are good (== 1)
+        tt_fg23 = np.logical_and(flag[:,:,:,2] == 1, flag[:,:,:,3] == 1)
+        
+        # tt_fb23: one or both flags 2, 3 are bad (!= 1)
+        tt_fb23 = np.logical_not(tt_fg23)
+        
+        # tt_fg01b23: where first two flags are good (== 1),
+        #             while one or both of the other two are bad (!= 1)
+        tt_fg01b23 = np.logical_and(tt_fg01, tt_fb23)
+
+        
+        #
+        # Create truth table tt_g01b23:
+        #   where first two flags and sigmas are good,
+        #   while one or both of the other two flags and sigmas are bad
+        #
+
+        tt_g01b23 = np.logical_and(tt_sg01b23, tt_fg01b23)
+
+
+        
         
         tt_maj23 = np.logical_and(tt_maj1, flag[:,:,:,2] == 1)
         tt_maj1 = np.logical_and(tt_maj1, flag[:,:,:,3] == 1)
