@@ -238,12 +238,9 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         
         # tt_fg01: where first two flags are good (== 1)
         tt_fg01 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        
-        # tt_fg23: where last two flags are good (== 1)
-        tt_fg23 = np.logical_and(flag[:,:,:,2] == 1, flag[:,:,:,3] == 1)
-        
+               
         # tt_fb23: one or both flags 2, 3 are bad (!= 1)
-        tt_fb23 = np.logical_not(tt_fg23)
+        tt_fb23 = np.logical_or(flag[:,:,:,2] != 1, flag[:,:,:,3] != 1)
         
         # tt_fg01b23: where first two flags are good (== 1),
         #             while one or both of the other two are bad (!= 1)
@@ -258,80 +255,75 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
 
         tt_g01b23 = np.logical_and(tt_sg01b23, tt_fg01b23)
 
+        flag1[tt_g01b23,0] = 1         # I
+        flag1[tt_g01b23,1] = 0         # Q
+        flag1[tt_g01b23,2] = 0         # U
+        flag1[tt_g01b23,3] = 1         # V
 
-        
-        
-        tt_maj23 = np.logical_and(tt_maj1, flag[:,:,:,2] == 1)
-        tt_maj1 = np.logical_and(tt_maj1, flag[:,:,:,3] == 1)
-        tt_maj1 = np.logical_and(tt_maj1, tt_fnz)
-
-        # tt_maj2: where ALL RR, LL, RL, and LR are recoverable and
-        #          ALL flags are -1 and sigmas are finite and non-zero
-        tt_maj2 = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, flag[:,:,:,2] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, flag[:,:,:,3] == -1)
-        tt_maj2 = np.logical_and(tt_maj2, tt_fnz)
+        vsar1[tt_g01b23,0] =  0.5* (rr[tt_g01b23] + ll[tt_g01b23])  # I
+        vsar1[tt_g01b23,1] =  0                                     # Q
+        vsar1[tt_g01b23,2] =  0                                     # U
+        vsar1[tt_g01b23,3] =  0.5* (rr[tt_g01b23] - ll[tt_g01b23])  # V
 
 
 #-------------------------------------------------------------------
 
         
-        # tt_fnz: where ALL sigmas are finite and non-zero
-        tt_fnz = np.logical_and(        np.isfinite(sig[:,:,:,0]),
-                                        np.isfinite(sig[:,:,:,1]))
-        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,2]))
-        tt_fnz = np.logical_and(tt_fnz, np.isfinite(sig[:,:,:,3]))
+        # tt_sg: where ALL sigmas are finite and non-zero
+        tt_sg = np.logical_and(       np.isfinite(sig[:,:,:,0]),
+                                      np.isfinite(sig[:,:,:,1]))
+        tt_sg = np.logical_and(tt_sg, np.isfinite(sig[:,:,:,2]))
+        tt_sg = np.logical_and(tt_sg, np.isfinite(sig[:,:,:,3]))
         
-        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,0] != 0)
-        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,1] != 0)
-        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,2] != 0)
-        tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,3] != 0)
+        tt_sg = np.logical_and(tt_sg, sig[:,:,:,0] != 0)
+        tt_sg = np.logical_and(tt_sg, sig[:,:,:,1] != 0)
+        tt_sg = np.logical_and(tt_sg, sig[:,:,:,2] != 0)
+        tt_sg = np.logical_and(tt_sg, sig[:,:,:,3] != 0)
 
 
-        # tt_all1: where ALL RR, LL, RL, and LR are good and
-        #          ALL flags are 1 and ALL sigmas are finite and non-zero
-        tt_all1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
-        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,2] == 1)
-        tt_all1 = np.logical_and(tt_all1, flag[:,:,:,3] == 1)
-        tt_all1 = np.logical_and(tt_all1, tt_fnz)
+        # tt_fg: where ALL flags are good (== 1)
+        tt_fg = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
+        tt_fg = np.logical_and(tt_fg,              flag[:,:,:,2] == 1)
+        tt_fg = np.logical_and(tt_fg,              flag[:,:,:,3] == 1)
 
-        # tt_all2: where ALL RR, LL, RL, and LR are recoverable and
-        #          ALL flags are -1 and sigmas are finite and non-zero
-        tt_all2 = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
-        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,2] == -1)
-        tt_all2 = np.logical_and(tt_all2, flag[:,:,:,3] == -1)
-        tt_all2 = np.logical_and(tt_all2, tt_fnz)
+        # tt_g: where ALL flags are 1 and ALL sigmas are finite and non-zero
+        tt_g = np.logical_and(tt_fg, tt_sg)
 
-        # tt_all: where RR, LL, RL, and LR are either good or recoverable:
+        
+        # tt_fr: where ALL flags are recoverable (== -1)
+        tt_fr = np.logical_and(flag[:,:,:,0] == -1, flag[:,:,:,1] == -1)
+        tt_fr = np.logical_and(tt_fr, flag[:,:,:,2] == -1)
+        tt_fr = np.logical_and(tt_fr, flag[:,:,:,3] == -1)
+
+        # tt_r: where ALL flags are -1 and sigmas are finite and non-zero
+        tt_r = np.logical_and(tt_fr, tt_sg)
+        
+        # tt_gr: where ALL data are either good or recoverable:
         #         all flags are 1 or -1 and sigmas are finite and non-zero
-        tt_all = np.logical_or(tt_all1, tt_all2)
+        tt_gr = np.logical_or(tt_g, tt_r)
 
 
-        flag1[tt_all1,:] = 1
-        flag1[tt_all2,:] = -1
+        flag1[tt_g,:] = 1
+        flag1[tt_r,:] = -1
 
-        vsar1[tt_all,0] =  0.5* (rr[tt_all] + ll[tt_all])   # I = 1/2 (RR + LL)
-        vsar1[tt_all,1] =  0.5* (rl[tt_all] + lr[tt_all])   # Q = 1/2 (RL + LR)
-        vsar1[tt_all,2] = -0.5j*(rl[tt_all] - lr[tt_all])   # U = 1/2j(RL - LR)
-        vsar1[tt_all,3] =  0.5* (rr[tt_all] - ll[tt_all])   # V = 1/2 (RR - LL)
+        vsar1[tt_gr,0] =  0.5* (rr[tt_gr] + ll[tt_gr])   # I = 1/2 (RR + LL)
+        vsar1[tt_gr,1] =  0.5* (rl[tt_gr] + lr[tt_gr])   # Q = 1/2 (RL + LR)
+        vsar1[tt_gr,2] = -0.5j*(rl[tt_gr] - lr[tt_gr])   # U = 1/2j(RL - LR)
+        vsar1[tt_gr,3] =  0.5* (rr[tt_gr] - ll[tt_gr])   # V = 1/2 (RR - LL)
 
-        sig_norm = 0.5*np.sqrt(sig[tt_all,0]**2 + sig[tt_all,1]**2 +
-                               sig[tt_all,2]**2 + sig[tt_all,3]**2)
-        sig1[tt_all,:] = sig_norm
+        sig_norm = 0.5*np.sqrt(sig[tt_gr,0]**2 + sig[tt_gr,1]**2 +
+                               sig[tt_gr,2]**2 + sig[tt_gr,3]**2)
+        sig1[tt_gr,:] = sig_norm
 
         if pseudoI:
             # Find where RL and LR are bad, but
             # either RR or LL are good: tt_ is "truth table"
             # "Finite" means "not Inf and not NaN"
 
-            # Either or both RL or LR are bad
-            tt_bad = np.logical_or(flag[:,:,:,2] != 1, flag[:,:,:,3] != 1)
-
-            # Only RR is good
-            tt_rr = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] != 1)
-            tt_rr = np.logical_and(tt_rr, tt_bad)
-            tt_rr = np.logical_and(tt_rr, np.isfinite(sig[:,:,:,0]))
-            tt_rr = np.logical_and(tt_rr, sig[:,:,:,0] != 0)
+            # Only pol 0 is good
+            tt_fg0b1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] != 1)
+            tt_sg0 = np.logical_and(np.isfinite(sig[:,:,:,0]))
+            tt_sg0 = np.logical_and(tt_sg0, sig[:,:,:,0] != 0)
             vsar1[tt_rr,0] = rr[tt_rr]             # I = RR
             #vsar1[tt_rr,1:] = 0.                  # V = 0
 
@@ -365,7 +357,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,2] != 0)
         tt_fnz = np.logical_and(tt_fnz, sig[:,:,:,3] != 0)
 
-        # tt_all1: where XX, YY, XY, and YX are good and
+        # tt_gr1: where XX, YY, XY, and YX are good and
         #          all flags are 1 and sigmas are finite and non-zero
         tt_all1 = np.logical_and(flag[:,:,:,0] == 1, flag[:,:,:,1] == 1)
         tt_all1 = np.logical_and(tt_all1, flag[:,:,:,2] == 1)
