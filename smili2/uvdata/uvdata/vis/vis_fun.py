@@ -187,8 +187,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g0b1,0] = 1
         flag1[tt_b0g1,0] = 1
 
-        sig1[tt_g0b1,:] = sig[tt_g0b1,0]
-        sig1[tt_b0g1,:] = sig[tt_b0g1,1]
+        sig1[tt_g0b1,:] = sig[tt_g0b1,0]  # ??? maybe, sig1[tt_g0b1,0] = ... ?
+        sig1[tt_b0g1,:] = sig[tt_b0g1,1]  # ??? maybe, sig1[tt_b0g1,0] = ... ?
         
     #
     # Compute Stokes' visibilities for different polarizations
@@ -199,9 +199,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         rr = vsar[:,:,:,0]
         ll = vsar[:,:,:,1]
 
-        sig1[tt_gr01,0] = sig_norm_01
-        sig1[tt_gr01,3] = sig_norm_01
-
         vsar1[tt_gr01,0] = 0.5*(rr[tt_gr01] + ll[tt_gr01]) # I = 1/2 (RR + LL)
         vsar1[tt_gr01,3] = 0.5*(rr[tt_gr01] - ll[tt_gr01]) # V = 1/2 (RR - LL)
 
@@ -211,11 +208,17 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_r01,0] = -1
         flag1[tt_r01,3] = -1
 
+        sig1[tt_gr01,0] = sig_norm_01
+        sig1[tt_gr01,3] = sig_norm_01
+
            
     elif polrepr == "stokes" and set_pol == set(['XX', 'YY']):
         
         xx = vsar[:,:,:,0]
         yy = vsar[:,:,:,1]
+
+        vsar1[tt_gr01,0] = 0.5*(xx[tt_gr01] + yy[tt_gr01])  # I = 1/2 (XX + YY)
+        vsar1[tt_gr01,1] = 0.5*(xx[tt_gr01] - yy[tt_gr01])  # Q = 1/2 (XX - YY)
 
         flag1[tt_g01,0] = 1
         flag1[tt_g01,1] = 1
@@ -223,11 +226,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_r01,0] = -1
         flag1[tt_r01,1] = -1
 
-        vsar1[tt_gr01,0] = 0.5*(xx[tt_gr01] + yy[tt_gr01])  # I = 1/2 (XX + YY)
-        vsar1[tt_gr01,1] = 0.5*(xx[tt_gr01] - yy[tt_gr01])  # Q = 1/2 (XX - YY)
-
         sig1[tt_gr01,0] = sig_norm_01
-        sig1[tt_gr01,3] = sig_norm_01
+        sig1[tt_gr01,1] = sig_norm_01
     
             
     elif polrepr == "stokes" and set_pol == set(['RR', 'LL', 'RL', 'LR']):
@@ -237,29 +237,22 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         rl = vsar[:,:,:,2]
         lr = vsar[:,:,:,3]
 
-        flag1[tt_g01b23,0] = 1         # I
-        flag1[tt_g01b23,3] = 1         # V
-
-        vsar1[tt_g01b23,0] =  0.5* (rr[tt_g01b23] + ll[tt_g01b23])  # I
-        vsar1[tt_g01b23,3] =  0.5* (rr[tt_g01b23] - ll[tt_g01b23])  # V
-
-        sig1[tt_g01b23,:] = sig_norm_01
+        vsar1[tt_g01b23,0] =  0.5*(rr[tt_g01b23] + ll[tt_g01b23])  # I
+        vsar1[tt_g01b23,3] =  0.5*(rr[tt_g01b23] - ll[tt_g01b23])  # V
 
         flag1[tt_g01b23,0] = 1         # I
         flag1[tt_g01b23,3] = 1         # V
 
-        vsar1[tt_g01b23,0] =  0.5* (rr[tt_g01b23] + ll[tt_g01b23])  # I
-        vsar1[tt_g01b23,3] =  0.5* (rr[tt_g01b23] - ll[tt_g01b23])  # V
-
-        sig1[tt_g01b23,:] = sig_norm_01
-
-        flag1[tt_g,:] = 1
-        flag1[tt_r,:] = -1
+        sig1[tt_g01b23,0] = sig_norm_01
+        sig1[tt_g01b23,3] = sig_norm_01
 
         vsar1[tt_gr,0] =  0.5* (rr[tt_gr] + ll[tt_gr])   # I = 1/2 (RR + LL)
         vsar1[tt_gr,1] =  0.5* (rl[tt_gr] + lr[tt_gr])   # Q = 1/2 (RL + LR)
         vsar1[tt_gr,2] = -0.5j*(rl[tt_gr] - lr[tt_gr])   # U = 1/2j(RL - LR)
         vsar1[tt_gr,3] =  0.5* (rr[tt_gr] - ll[tt_gr])   # V = 1/2 (RR - LL)
+
+        flag1[tt_g,:] = 1
+        flag1[tt_r,:] = -1
 
         sig1[tt_gr,:] = sig_norm
         
@@ -271,27 +264,25 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         xy = vsar[:,:,:,2]
         yx = vsar[:,:,:,3]
 
+        vsar1[tt_g01b23,0] =  0.5*(xx[tt_g01b23] + yy[tt_g01b23])  # I
+        vsar1[tt_g01b23,1] =  0.5*(xx[tt_g01b23] - yy[tt_g01b23])  # Q
+
         flag1[tt_g01b23,0] = 1         # I
         flag1[tt_g01b23,1] = 1         # Q
 
-        vsar1[tt_g01b23,0] =  0.5* (xx[tt_g01b23] + yy[tt_g01b23])  # I
-        vsar1[tt_g01b23,1] =  0.5* (xx[tt_g01b23] - yy[tt_g01b23])  # Q
-
-        sig1[tt_g01b23,:] = sig_norm_01
-
-        flag1[tt_g,:] = 1
-        flag1[tt_r,:] = -1
+        sig1[tt_g01b23,0] = sig_norm_01
+        sig1[tt_g01b23,1] = sig_norm_01
 
         vsar1[tt_gr,0] =  0.5* (xx[tt_gr] + yy[tt_gr])  # I = 1/2 (XX + YY)
         vsar1[tt_gr,1] =  0.5* (xx[tt_gr] - yy[tt_gr])  # Q = 1/2 (XX - YY)
         vsar1[tt_gr,2] =  0.5* (xy[tt_gr] + yx[tt_gr])  # U = 1/2 (XY + YX)
         vsar1[tt_gr,3] = -0.5j*(xy[tt_gr] - yx[tt_gr])  # V = 1/2j(XY - YX)
         
-        sig1[tt_gr,:] = sig_norm
-        
         flag1[tt_g,:] = 1
         flag1[tt_r,:] = -1
 
+        sig1[tt_gr,:] = sig_norm
+        
 
     #
     # Create visibility table as an xarray.DataArray
