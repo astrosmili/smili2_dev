@@ -187,8 +187,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g0b1,0] = 1
         flag1[tt_b0g1,0] = 1
 
-        sig1[tt_g0b1,:] = sig[tt_g0b1,0]  # ??? maybe, sig1[tt_g0b1,0] = ... ?
-        sig1[tt_b0g1,:] = sig[tt_b0g1,1]  # ??? maybe, sig1[tt_b0g1,0] = ... ?
+        sig1[tt_g0b1,0] = sig[tt_g0b1,0]  # ??? maybe, sig1[tt_g0b1,0] = ... ?
+        sig1[tt_b0g1,0] = sig[tt_b0g1,1]  # ??? maybe, sig1[tt_b0g1,0] = ... ?
         
     #
     # Compute Stokes' visibilities for different polarizations
