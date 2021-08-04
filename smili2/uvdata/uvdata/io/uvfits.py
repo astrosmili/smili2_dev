@@ -376,7 +376,8 @@ def uvfits2freq(ghdu, antab, fqtab):
     from ....util.terminal import warn
     from ..freq import FreqData
     from xarray import Dataset
-    from numpy import float64
+    #from numpy import float64
+    import numpy as np
 
     # read meta data from antenna table
     reffreq = antab.header["FREQ"]  # reference frequency in GHz
@@ -391,19 +392,22 @@ def uvfits2freq(ghdu, antab, fqtab):
     nfrqsel = len(fqtab.data["FRQSEL"])
     if nfrqsel > 1:
         warn("Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
-    iffreq = float64(fqtab.data["IF FREQ"][0])
-    chbw = float64(fqtab.data["CH WIDTH"][0])
-    sideband = float64(fqtab.data["SIDEBAND"][0])
-
-    # check the consistency between the number of if in FQ Table and GroupHDU
-    if isinstance(iffreq, (float, float64, int)):
-        if Nif != 1:
-            raise ValueError("Group HDU has %d IFs, which is inconsistent " \
-                             "with FQ table with a single IF" % Nif)
-    else:
-        if len(iffreq) != Nif:
-            raise ValueError("Group HDU has %d IFs, which is inconsistent " \
-                             "with FQ table with %d IFs" % (Nif, len(iffreq)))
+    iffreq =   np.float64(fqtab.data["IF FREQ"][0])
+    chbw =     np.float64(fqtab.data["CH WIDTH"][0])
+    sideband = np.float64(fqtab.data["SIDEBAND"][0])
+    # Must be arrays:
+    if np.isscalar(iffreq):   iffreq =   np.array([iffreq])
+    if np.isscalar(chbw):     chbw =     np.array([chbw])
+    if np.isscalar(sideband): sideband = np.array([sideband])
+    
+    # check the consistency between the number of if in FQ Table and GroupHDU   
+    # if isinstance(iffreq, (float, np.float64, int)):
+    #     raise ValueError("Group HDU has %d IFs, which is inconsistent " \
+    #                      "with FQ table with a single IF" % Nif)
+    # else:
+    if len(iffreq) != Nif:
+        raise ValueError("Group HDU has %d IFs, which is inconsistent " \
+                         "with FQ table with %d IFs" % (Nif, len(iffreq)))
     # Make FreqTable
     dataset = Dataset(
         coords=dict(
