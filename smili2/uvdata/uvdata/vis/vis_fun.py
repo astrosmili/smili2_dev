@@ -108,6 +108,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         #         all flags are 1 or -1 and sigmas are finite and non-zero
         tt_gr01 = np.logical_or(tt_g01, tt_r01)
 
+        sig_norm_01 = 0.5*np.sqrt(sig[tt_gr01,0]**2 + sig[tt_gr01,1]**2)
+
 
     if polrepr == "stokes" and npol == 4:
 
@@ -173,8 +175,6 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         #         all flags are 1 or -1 and sigmas are finite and non-zero
         tt_gr = np.logical_or(tt_g, tt_r)
         
-        sig_norm_01 = 0.5*np.sqrt(sig[tt_gr01,0]**2 + sig[tt_gr01,1]**2)
-
         sig_norm = 0.5*np.sqrt(sig[tt_gr,0]**2 + sig[tt_gr,1]**2 +
                                sig[tt_gr,2]**2 + sig[tt_gr,3]**2)
         

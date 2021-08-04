@@ -21,8 +21,11 @@ polid2name = { # Possible values of CRVAL3 in .uvfits headers
     "-8": "YX",
 }
 
-in_uvfits = '/home/benkev/ALMA/3C273.coeff.fittp.uvfits'
-out_zarr = '/home/benkev/ALMA/3C273_zarr'
+# in_uvfits = '/home/benkev/ALMA/3C273.coeff.fittp.uvfits'
+# out_zarr = '/home/benkev/ALMA/3C273_zarr'
+
+in_uvfits = '/home/benkev/ALMA/J2203TSTCL5_SUBSP_avch.uvfits'
+out_zarr = '/home/benkev/ALMA/J2203TSTCL5_SUBSP_avch_zarr'
 
 pseudoI = False
 
