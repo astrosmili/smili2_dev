@@ -58,6 +58,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
     vsar1 = np.zeros(shape1, dtype=complex)
     flag1 = np.zeros(shape1, dtype=np.int32) # Assume ALL the data are bad
     sig1 =  np.zeros(shape1, dtype=float)
+    sig_norm_01 =  np.zeros(shape1[:-1], dtype=float)
+    sig_norm =  np.zeros(shape1[:-1], dtype=float)
 
     # New polarization coordinates dependent on the requested representation
     if polrepr == "stokes":
@@ -108,7 +110,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         #         all flags are 1 or -1 and sigmas are finite and non-zero
         tt_gr01 = np.logical_or(tt_g01, tt_r01)
 
-        sig_norm_01 = 0.5*np.sqrt(sig[tt_gr01,0]**2 + sig[tt_gr01,1]**2)
+        sig_norm_01[tt_gr01] = 0.5*np.sqrt(sig[tt_gr01,0]**2 + \
+                                           sig[tt_gr01,1]**2)
 
 
     if polrepr == "stokes" and npol == 4:
@@ -175,7 +178,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         #         all flags are 1 or -1 and sigmas are finite and non-zero
         tt_gr = np.logical_or(tt_g, tt_r)
         
-        sig_norm = 0.5*np.sqrt(sig[tt_gr,0]**2 + sig[tt_gr,1]**2 +
+        sig_norm[tt_gr] = 0.5*np.sqrt(sig[tt_gr,0]**2 + sig[tt_gr,1]**2 +
                                sig[tt_gr,2]**2 + sig[tt_gr,3]**2)
         
 
@@ -208,8 +211,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_r01,0] = -1
         flag1[tt_r01,3] = -1
 
-        sig1[tt_gr01,0] = sig_norm_01
-        sig1[tt_gr01,3] = sig_norm_01
+        sig1[tt_gr01,0] = sig_norm_01[tt_gr01]
+        sig1[tt_gr01,3] = sig_norm_01[tt_gr01]
 
            
     elif polrepr == "stokes" and set_pol == set(['XX', 'YY']):
@@ -226,8 +229,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_r01,0] = -1
         flag1[tt_r01,1] = -1
 
-        sig1[tt_gr01,0] = sig_norm_01
-        sig1[tt_gr01,1] = sig_norm_01
+        sig1[tt_gr01,0] = sig_norm_01[tt_gr01]
+        sig1[tt_gr01,1] = sig_norm_01[tt_gr01]
     
             
     elif polrepr == "stokes" and set_pol == set(['RR', 'LL', 'RL', 'LR']):
@@ -243,8 +246,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g01b23,0] = 1         # I
         flag1[tt_g01b23,3] = 1         # V
 
-        sig1[tt_g01b23,0] = sig_norm_01
-        sig1[tt_g01b23,3] = sig_norm_01
+        sig1[tt_g01b23,0] = sig_norm_01[tt_g01b23]
+        sig1[tt_g01b23,3] = sig_norm_01[tt_g01b23]
 
         vsar1[tt_gr,0] =  0.5* (rr[tt_gr] + ll[tt_gr])   # I = 1/2 (RR + LL)
         vsar1[tt_gr,1] =  0.5* (rl[tt_gr] + lr[tt_gr])   # Q = 1/2 (RL + LR)
@@ -254,7 +257,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g,:] = 1
         flag1[tt_r,:] = -1
 
-        sig1[tt_gr,:] = sig_norm
+        for ipol in range(4): sig1[tt_gr,ipol] = sig_norm[tt_gr]
         
 
     elif polrepr == "stokes" and set_pol == set(['XX', 'YY', 'XY', 'YX']):
@@ -270,8 +273,8 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g01b23,0] = 1         # I
         flag1[tt_g01b23,1] = 1         # Q
 
-        sig1[tt_g01b23,0] = sig_norm_01
-        sig1[tt_g01b23,1] = sig_norm_01
+        sig1[tt_g01b23,0] = sig_norm_01[tt_g01b23]
+        sig1[tt_g01b23,1] = sig_norm_01[tt_g01b23]
 
         vsar1[tt_gr,0] =  0.5* (xx[tt_gr] + yy[tt_gr])  # I = 1/2 (XX + YY)
         vsar1[tt_gr,1] =  0.5* (xx[tt_gr] - yy[tt_gr])  # Q = 1/2 (XX - YY)
@@ -281,7 +284,7 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
         flag1[tt_g,:] = 1
         flag1[tt_r,:] = -1
 
-        sig1[tt_gr,:] = sig_norm
+        for ipol in range(4): sig1[tt_gr,ipol] = sig_norm[tt_gr]
         
 
     #
