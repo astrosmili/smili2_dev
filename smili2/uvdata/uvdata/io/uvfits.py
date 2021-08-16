@@ -143,7 +143,8 @@ def uvfits2HDUs(hdulist):
 
 def uvfits2vistab(ghdu):
     """
-    Load the array information from uvfits's AIPS AN table into the SMILI format.
+    Load the array information from uvfits's PRIMARY table into the 
+         SMILI format.
 
     Args:
         ghdu (astropy.io.fits.HDU): Group (Primary) HDU
