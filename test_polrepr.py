@@ -6,8 +6,10 @@ import numpy as np
 import matplotlib.pyplot as pl
 import astropy.io.fits as pf
 
+#in_uvfits = '/data-smili/J2203TSTCL5_SUBSP.uvfits'
+in_uvfits = '/home/benkev/ALMA/J2203TSTCL5_SUBSP.uvfits'
 
-hdul = pf.open('/data-smili/J2203TSTCL5_SUBSP.uvfits')
+hdul = pf.open(in_uvfits)
 hi = hdul.info(output=False)
 Nhdu = len(hi)
 
