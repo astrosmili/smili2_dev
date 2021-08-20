@@ -81,17 +81,13 @@ class VisTable(ZarrDataset):
             idx = scan[0]
             ds = scan[1]
             scanid[idx] = idx
-            mjdst[idx] = ds.mjd.data[0]
-            mjded[idx] = ds.mjd.data[-1]
-            dmjdst[idx] = ds.dmjd.data[0]
-            dmjded[idx] = ds.dmjd.data[-1]
+            mjdst[idx] = ds.mjd.data[0]-ds.dmjd.data[0]/2.
+            mjded[idx] = ds.mjd.data[-1]+ds.dmjd.data[-1]/2.
 
         ds = Dataset(
             coords=dict(
                 mjdst=("scan", mjdst),
-                mjded=("scan", mjded),
-                dmjdst=("scan", dmjdst),
-                dmjded=("scan", dmjded)
+                mjded=("scan", mjded)
             )
         )
         return ScanData(ds=ds)
