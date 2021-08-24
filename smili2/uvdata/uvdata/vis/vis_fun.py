@@ -312,8 +312,27 @@ def switch_polrepr(vistab, polrepr, pseudoI=False):
 
     return vt
 
-
 __switch_polrepr = switch_polrepr
+
+
+def average_time(vistab, new_tint):
+    
+    
+    #
+    # Extract visibility, flag, and sigma arrays
+    #
+    vsar = vistab.ds.vis.data       #.compute()   # Extract visibility array
+    flag = vistab.ds.vis.flag.data  #.compute() 
+    sig =  vistab.ds.vis.sigma.data.compute()     # Extract sigma array
+
+    shape1 = list(vsar.shape)  # Dimensions [data, spw, ch, pol]
+    
+    # # New visibility ndarrays for the visibility, flags and sigmas
+    # vsar1 = np.zeros(shape1, dtype=complex)
+    # flag1 = np.zeros(shape1, dtype=np.int32) # Assume ALL the data are bad
+    # sig1 =  np.zeros(shape1, dtype=float)
+    # sig_norm_01 =  np.zeros(shape1[:-1], dtype=float)
+    # sig_norm =  np.zeros(shape1[:-1], dtype=float)
 
 
 
