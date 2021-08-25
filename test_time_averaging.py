@@ -27,11 +27,11 @@ fig1 = pl.figure()
 pl.plot(mjd-mjd[0]); pl.grid(1); pl.title('mjd - mjd[0]')
 
 fig2 = pl.figure()
-pl.plot(sc); pl.plot(diff(vt.ds.scanid)); pl.grid(1)
+pl.plot(sc); pl.plot(np.diff(vt.ds.scanid)); pl.grid(1)
 pl.title('Scan ID and diff(vt.ds.scanid)')
 
 # Starts of the scans
-scidx = np.nonzero(diff(vt.ds.scanid))[0] + 1
+scidx = np.nonzero(np.diff(vt.ds.scanid))[0] + 1
 scidx = np.hstack((0, scidx)) # Add zero as the first scan start
 
 #
@@ -43,3 +43,5 @@ isc1 = scidx[4]
 fig3 = pl.figure()
 pl.plot(mjd[isc0:isc1]-mjd[isc0]); pl.grid(1);
 pl.title('mjd[isc0:isc1] - mjd[isc0]')
+
+pl.show()
