@@ -30,11 +30,14 @@ polid2name = { # Possible values of CRVAL3 in .uvfits headers
 # in_uvfits = '/home/benkev/ALMA/J2203TSTCL5_SUBSP_avch.uvfits'
 # out_zarr =  '/home/benkev/ALMA/J2203TSTCL5_SUBSP_avch_zarr'
 
+in_uvfits = '/home/benkev/ALMA/J2203TSTCL5_SUBSP.uvfits'
+out_zarr =  '/home/benkev/ALMA/J2203TSTCL5_SUBSP_zarr'
+
 # in_uvfits = '/data-smili/J2203TSTCL5_SUBSP_avch.uvfits'
 # out_zarr =  '/data-smili/J2203TSTCL5_SUBSP_avch_zarr'
 
-in_uvfits = '/data-smili/J2203TSTCL5_SUBSP.uvfits'
-out_zarr =  '/data-smili/J2203TSTCL5_SUBSP_zarr'
+# in_uvfits = '/data-smili/J2203TSTCL5_SUBSP.uvfits'
+# out_zarr =  '/data-smili/J2203TSTCL5_SUBSP_zarr'
 
 pseudoI = False
 
