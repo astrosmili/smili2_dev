@@ -81,7 +81,7 @@ class UVData(object):
         Split vistable into scan-based visibility data sets.
 
         Args:
-            remove_vistab (bool, optional): 
+            remove_vistab (bool, optional):
                 If True, vistab will be removed after generating vis data set.
                 Defaults to True.
         """

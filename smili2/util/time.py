@@ -7,7 +7,6 @@ __author__ = "Smili Developer Team"
 # Modules
 # ------------------------------------------------------------------------------
 from numpy import arange, concatenate
-
 # internal
 from astropy.time import Time, TimeDelta
 from .units import MIN, SEC
@@ -38,3 +37,30 @@ def create_utc_array(tstart, tend, tscan=6.*MIN, tint=20*MIN, tap=30*SEC):
     utc = tstart + TimeDelta(concatenate(
         [tscan_start+tscan_seg_sec for tscan_start in tscan_start_sec]), format="sec")
     return utc
+
+
+def mjd2gst(mjd):
+    """
+    Convert from mjd to gst
+
+    Args:
+        mjd (float array like): modified julian date.
+
+    Returns:
+        numpy array for GST hour
+    """
+    utc = Time(mjd, format="mjd")
+    return utc.sidereal_time(kind="apparent", longitude="greenwich", model="IAU2006A").hour
+
+
+def mjd2utc(mjd):
+    """
+    Convert from mjd to astropy.time.Time array
+
+    Args:
+        mjd ([type]): [description]
+
+    Returns:
+        array of astropy.time.Time
+    """
+    return Time(mjd, format="mjd")

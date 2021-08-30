@@ -55,3 +55,25 @@ YEAR = Unit("year")
 
 # Mass
 MSUN = Unit("Msun")
+
+# CONVERSION FACTORS FOR ANGLES
+DEG2RAD = conv(DEG, RAD)
+RAD2DEG = conv(RAD, DEG)
+
+AMIN2RAD = conv(AMIN, RAD)
+RAD2AMIN = conv(RAD, AMIN)
+
+ASEC2RAD = conv(ASEC, RAD)
+RAD2ASEC = conv(RAD, ASEC)
+
+MAS2RAD = conv(MAS, RAD)
+RAD2MAS = conv(RAD, MAS)
+
+UAS2RAD = conv(UAS, RAD)
+RAD2UAS = conv(RAD, UAS)
+
+HOUR2RAD = conv("hourangle", RAD)
+RAD2HOUR = conv(RAD, "hourangle")
+
+
+# TIME

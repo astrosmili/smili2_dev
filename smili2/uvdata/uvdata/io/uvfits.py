@@ -339,22 +339,26 @@ def uvfits2ant(antab):
     # assume all of them are ground array
     anttype = asarray(["g" for i in range(Nant)], dtype="U8")
 
-    ant = Dataset(
-        coords=dict(
-            antname=("ant", antname),
-            x=("ant", xyz[:, 0]),
-            y=("ant", xyz[:, 1]),
-            z=("ant", xyz[:, 2]),
-            fr_pa_coeff=("ant", fr_pa_coeff),
-            fr_el_coeff=("ant", fr_el_coeff),
-            fr_offset=("ant", fr_offset),
-            anttype=("ant", anttype),
-        ),
-        attrs=dict(
-            name=name,
-        ),
+    antdata = AntData(
+        ds=Dataset(
+            coords=dict(
+                antname=("ant", antname),
+                x=("ant", xyz[:, 0]),
+                y=("ant", xyz[:, 1]),
+                z=("ant", xyz[:, 2]),
+                fr_pa_coeff=("ant", fr_pa_coeff),
+                fr_el_coeff=("ant", fr_el_coeff),
+                fr_offset=("ant", fr_offset),
+                anttype=("ant", anttype),
+            ),
+            attrs=dict(
+                name=name,
+            ),
+        )
     )
-    return AntData(ant)
+    antdata.init_coords()
+
+    return antdata
 
 
 def uvfits2freq(ghdu, antab, fqtab):
@@ -441,12 +445,26 @@ def uvfits2src(ghdu):
     srcname = ghdu.header["OBJECT"]
     ra = ghdu.header["CRVAL6"]
     dec = ghdu.header["CRVAL7"]
+    if "EQUINOX" in ghdu.header.keys():
+        equinox = ghdu.header["EQUINOX"]
+        coordsys = "fk5"
+    elif "EPOCH" in ghdu.header.keys():
+        equinox = ghdu.header["EPOCH"]
+        coordsys = "fk5"
+    else:
+        equinox = -1
+
+    if equinox < 0:
+        equinox = -1
+        coordsys = "icrs"
 
     src = Dataset(
         attrs=dict(
             name=srcname,
             ra=ra,
-            dec=dec
+            dec=dec,
+            equinox=equinox,
+            coordsys=coordsys
         ),
     )
 

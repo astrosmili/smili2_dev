@@ -118,7 +118,7 @@ class ScanData(ZarrDataset):
 
     def plot_scan(self, timeunit="utchour", **plotargs):
         """
-        Make a time vs scan id plots
+        Plot scan id as a function of time
 
         Args:
             timeunit (str, optional):
