@@ -13,6 +13,11 @@ import scipy.ndimage as sn
 import h5py
 import tqdm
 
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
+
 class Image(ZarrDataset):
     '''
     The Class to handle five dimensional images
@@ -898,7 +903,7 @@ class Image(ZarrDataset):
         dx1 = outim.ds.dx
         dy1 = outim.ds.dy
         Nxr1 = outim.ds.ixref
-        Nyr1 =outim.ds.iyref
+        Nyr1 = outim.ds.iyref
 
         # output grid information
         coord = np.zeros([2, Nx1 * Ny1])
@@ -909,20 +914,21 @@ class Image(ZarrDataset):
         coord[1, :] = x.reshape(Nx1 * Ny1)
 
         for itime, ifreq, istokes in itertools.product(range(Ntime), range(Nfreq), range(Nstokes)):
-            data = im.ds["image"].data[itime,ifreq,istokes]
+            data = im.ds["image"].data[itime, ifreq, istokes]
 
-            outim.ds["image"].data[itime,ifreq,istokes] = sn.map_coordinates(
-            data, coord, order=order,
-            mode='constant', cval=0.0, prefilter=True).reshape([Ny1, Nx1]
-                                                               ) * dx1 * dy1 / dx0 / dy0
+            outim.ds["image"].data[itime, ifreq, istokes] = sn.map_coordinates(
+                data, coord, order=order,
+                mode='constant', cval=0.0, prefilter=True).reshape([Ny1, Nx1]
+                                                                   ) * dx1 * dy1 / dx0 / dy0
 
             # Flux Scaling
             if save_totalflux:
-                totalflux = im.totalflux(itime=itime, ifreq=ifreq, istokes=istokes)
-                outim.ds["image"].data[0,0,0] *= totalflux / \
+                totalflux = im.totalflux(
+                    itime=itime, ifreq=ifreq, istokes=istokes)
+                outim.ds["image"].data[0, 0, 0] *= totalflux / \
                     outim.totalflux(itime=itime, ifreq=ifreq, istokes=istokes)
 
-        #outim.update_fits()
+        # outim.update_fits()
         return outim
 
     def totalflux(self, fluxunit="Jy", itime=0, ifreq=0, istokes=0):
@@ -934,13 +940,11 @@ class Image(ZarrDataset):
           istokes (integer): index for Stokes Parameter at which the total flux will be calculated
           ifreq (integer): index for Frequency at which the total flux will be calculated
         '''
-        return self.ds["image"].data[itime ,ifreq,istokes].sum() * util.fluxconv("Jy", fluxunit)
+        return self.ds["image"].data[itime, ifreq, istokes].sum() * util.fluxconv("Jy", fluxunit)
 
     def lightcurve(self, fluxunit="Jy", ifreq=0, istokes=0):
         Ntime, dummy, dummy, dummy, dummy = self.ds["image"].data.shape
         return np.array([self.totalflux(fluxunit, itime, ifreq, istokes) for itime in range(Ntime)])
-
-
 
     def to_hdf5_ehtim(self, file_name):
         '''
@@ -951,15 +955,17 @@ class Image(ZarrDataset):
         '''
         Ntime, Nfreq, Nstokes, Nx, Ny = self.ds.image.shape
 
-        if Nx!= Ny:
-            raise ValueError("Grid numbers of x, y coordinates are different Nx(=%d) != Ny(=%d)"%(Nx, Ny))
-        if len(list(set(self.ds.freq.data)))>1:
-            raise ValueError("This function cannot be used for multi epoch hdf5")
-        if len(list(set(self.ds.stokes.data)))>1 or self.ds.stokes.data[0]!="I":
+        if Nx != Ny:
+            raise ValueError(
+                "Grid numbers of x, y coordinates are different Nx(=%d) != Ny(=%d)" % (Nx, Ny))
+        if len(list(set(self.ds.freq.data))) > 1:
+            raise ValueError(
+                "This function cannot be used for multi epoch hdf5")
+        if len(list(set(self.ds.stokes.data))) > 1 or self.ds.stokes.data[0] != "I":
             raise ValueError("This function is only used for stokes I")
 
         mjd = int(self.ds.mjd.data[0])
-        times = (self.ds.mjd.data- mjd)*24
+        times = (self.ds.mjd.data - mjd)*24
 
         with h5py.File(file_name, "w") as file:
             head = file.create_dataset('header', (0,), dtype="S10")
@@ -976,14 +982,12 @@ class Image(ZarrDataset):
 
             # image table (Nt * Ny * Nx)
             name = "I"
-            frames = np.stack([np.flipud(self.ds.image.data[it, 0, 0, :,:]) for it in range(Ntime)])
+            frames = np.stack(
+                [np.flipud(self.ds.image.data[it, 0, 0, :, :]) for it in range(Ntime)])
             dset = file.create_dataset(name, data=frames, dtype='f8')
 
-
-
-
-
     ###########
+
 
 def load_fits(infits, fitsfmt="casa"):
     """
@@ -1008,6 +1012,7 @@ def load_fits(infits, fitsfmt="casa"):
         return load_fits_ehtim(infits)
     else:
         raise ValueError("fitsfmt=%s is not supported." % (fitsfmt))
+
 
 def gen_image(
         nx=128, ny=None,
@@ -1110,6 +1115,7 @@ def gen_image(
 
     return outim
 
+
 def load_hdf5(hdf5file, angunit="uas"):
     '''
     Read data from the movie hdf5 file
@@ -1124,25 +1130,26 @@ def load_hdf5(hdf5file, angunit="uas"):
         head = file['header']
         mjd = int(head.attrs['mjd'].astype(str))
         times = np.float64(file['times'][:]/24)+mjd
-        dx = np.float64(head.attrs['psize'].astype(str))* util.angconv("rad",angunit)
+        dx = np.float64(head.attrs['psize'].astype(
+            str)) * util.angconv("rad", angunit)
         ra = np.float64(head.attrs['ra'].astype(str))
-        dec =np.float64(head.attrs['dec'].astype(str))
+        dec = np.float64(head.attrs['dec'].astype(str))
         freq = np.float64(head.attrs['rf'].astype(str))
         polrep = head.attrs['polrep'].astype(str)
         pol_prim = head.attrs['pol_prim'].astype(str)
         source = head.attrs["source"].astype(str)
-        data = file[pol_prim][:] # time, y, x
+        data = file[pol_prim][:]  # time, y, x
         Ntime, Ny, Nx = data.shape
 
     # intialization of image object
-    mov = gen_image(nx=Nx, ny=Ny, dx=dx, dy=dx, ixref=None, iyref=None,\
-                                        angunit=angunit, mjd=times, freq=[freq], ns=1,\
-                                        source=source, srccoord=None, instrument="EHT")
+    mov = gen_image(nx=Nx, ny=Ny, dx=dx, dy=dx, ixref=None, iyref=None,
+                    angunit=angunit, mjd=times, freq=[freq], ns=1,
+                    source=source, srccoord=None, instrument="EHT")
 
-    print("Construct movie frame")
-    print("Note: so far hdf5 includes single stokes (=I) and single band")
-    #print("Note: need to invert the y direction")
+    logger.info("Construct movie frame")
+    logger.info("Note: so far hdf5 includes single stokes (=I) and single band")
+    #logger.info("Note: need to invert the y direction")
     for itime in tqdm.tqdm(range(Ntime)):
-        mov.ds["image"].data[itime,0,0] =  data[itime, ::-1]
+        mov.ds["image"].data[itime, 0, 0] = data[itime, ::-1]
 
     return mov

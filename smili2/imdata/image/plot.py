@@ -6,6 +6,10 @@ This is a sub-module of smili2 handling image data.
 __author__ = "Smili Developer Team"
 from ...util.zarrds import ZarrDataset
 
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 def plot_imshow(
         image,
@@ -92,7 +96,6 @@ def plot_imshow(
     if scale.lower() == "log":
         vmin = None
         norm = LogNorm(vmin=peak/dyrange, vmax=peak)
-        print(peak/dyrange, where(imarr < peak/dyrange))
         imarr[where(imarr < peak/dyrange)] = peak/dyrange
     elif scale.lower() == "gamma":
         if vmin is not None and relative:

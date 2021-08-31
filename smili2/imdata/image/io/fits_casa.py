@@ -41,8 +41,6 @@ def load_fits_casa(infits):
 
     eqx = hdu.header["EQUINOX"]
 
-    print("Equinox = %6.1f" % eqx)
-
     # ra axis
     if 'OBSRA' in hdu.header:
         xdeg = hdu.header["OBSRA"]
@@ -53,7 +51,7 @@ def load_fits_casa(infits):
     ixref = hdu.header["CRPIX1"] - 1
     ra_prj = hdu.header["CTYPE1"]
     if ra_prj != 'RA---SIN':
-        print("Warning: Projection CTYPE1='%s' is not RA---SIN." % ra_prj)
+        logger.warning("Projection CTYPE1='%s' is not RA---SIN." % ra_prj)
 
     # dec axis
     if 'OBSDEC' in hdu.header:
@@ -65,7 +63,7 @@ def load_fits_casa(infits):
     iyref = hdu.header["CRPIX2"] - 1
     dec_prj = hdu.header["CTYPE2"]
     if dec_prj != 'DEC--SIN':
-        print("Warning: Projection CTYPE1='%s' is not DEC--SIN." % dec_prj)
+        logger.warning("Projection CTYPE1='%s' is not DEC--SIN." % dec_prj)
 
     # frequency
     nfreq = hdu.header["NAXIS3"]

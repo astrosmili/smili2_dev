@@ -6,6 +6,11 @@ variables, and data types in the smili module.
 '''
 import numpy as np
 
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
+
 def set_ompnumthreads(numthreads, variable="OMP_NUM_THREADS"):
     '''
     Set the number of threads for Open MP
@@ -18,8 +23,9 @@ def set_ompnumthreads(numthreads, variable="OMP_NUM_THREADS"):
     '''
     import os
 
-    print("export %s=%d"%(variable,numthreads))
-    os.environ[variable] = '%d'%(numthreads)
+    logger.info("running 'export %s=%d'" % (variable, numthreads))
+    os.environ[variable] = '%d' % (numthreads)
+
 
 def set_nproc(nproc):
     '''
@@ -27,8 +33,9 @@ def set_nproc(nproc):
     '''
     global __smili_nproc
 
-    print("The number of processes is set to %d."%(nproc))
+    logger.info("The number of processes is set to %d." % (nproc))
     __smili_nproc = nproc
+
 
 def fluxconv(unit1="Jy", unit2="Jy"):
     '''
@@ -41,7 +48,7 @@ def fluxconv(unit1="Jy", unit2="Jy"):
     # Convert from unit1 to "jy"
     u1low = unit1.lower()
     u2low = unit2.lower()
-    if   u1low == "jy":
+    if u1low == "jy":
         conv = 1.
     elif u1low == "mjy":
         conv = 1e-3
@@ -52,8 +59,9 @@ def fluxconv(unit1="Jy", unit2="Jy"):
     elif u1low == "cgs":
         conv = 1e-23
     else:
-        print("Error: unit1=%s is not supported" % (unit1))
-        return -1
+        msg = "unit1=%s is not supported" % (unit1)
+        logger.error(msg)
+        ValueError(msg)
 
     # Convert from "jy" to u2low
     if u2low == "jy":
@@ -67,10 +75,12 @@ def fluxconv(unit1="Jy", unit2="Jy"):
     elif u2low == "cgs":
         conv *= 1e23
     else:
-        print("Error: unit2=%s is not supported" % (unit2))
-        return -1
-    
+        msg = "unit2=%s is not supported" % (unit2)
+        logger.error(msg)
+        ValueError(msg)
+
     return conv
+
 
 def angconv(unit1="deg", unit2="deg"):
     '''
@@ -96,8 +106,9 @@ def angconv(unit1="deg", unit2="deg"):
     elif u1low == "uas":
         conv = 1e-6
     else:
-        print("Error: unit1=%s is not supported" % (unit1))
-        return -1
+        msg = "unit1=%s is not supported" % (unit1)
+        logger.error(msg)
+        ValueError(msg)
 
     # Convert from "arcsec" to u2low
     if u2low == "deg":
@@ -113,11 +124,13 @@ def angconv(unit1="deg", unit2="deg"):
     elif u2low == "uas":
         conv *= 1e6
     else:
-        print("Error: unit2=%s is not supported" % (unit2))
-        return -1
+        msg = "unit2=%s is not supported" % (unit2)
+        logger.error(msg)
+        ValueError(msg)
     return conv
 
-def solidang(x=1.,y=None,angunit="deg",satype="pixel",angunitout=None):
+
+def solidang(x=1., y=None, angunit="deg", satype="pixel", angunitout=None):
     '''
     Return the solid angle of the pixel or beam
 
@@ -143,7 +156,7 @@ def solidang(x=1.,y=None,angunit="deg",satype="pixel",angunitout=None):
     if angunitout is None:
         angunitout = angunit
 
-    if   satype.lower()[0] == "b":
+    if satype.lower()[0] == "b":
         beamcorr = np.pi/(4*np.log(2))
     elif satype.lower()[0] == "p":
         beamcorr = 1.
@@ -157,8 +170,9 @@ def solidang(x=1.,y=None,angunit="deg",satype="pixel",angunitout=None):
 
     return np.abs(beamcorr * x * y * aconv**2)
 
-def saconv(x1=1.,y1=None,angunit1="deg",satype1="pixel",
-           x2=1.,y2=None,angunit2=None, satype2=None):
+
+def saconv(x1=1., y1=None, angunit1="deg", satype1="pixel",
+           x2=1., y2=None, angunit2=None, satype2=None):
     '''
     return a conversion factor between given sizes of the pixel or beam
     '''
@@ -167,18 +181,21 @@ def saconv(x1=1.,y1=None,angunit1="deg",satype1="pixel",
         angunit2 = angunit1
     if satype2 is None:
         satype2 = satype1
-    solidang1 = solidang(x1,y1,angunit1,satype1,angunitout=angunit1)
-    solidang2 = solidang(x2,y2,angunit2,satype2,angunitout=angunit1)
+    solidang1 = solidang(x1, y1, angunit1, satype1, angunitout=angunit1)
+    solidang2 = solidang(x2, y2, angunit2, satype2, angunitout=angunit1)
     return np.abs(solidang2/solidang1)
 
-def interpolation1d(xd,yd,xi,kind="cubic",bounds_error=False, fill_value=np.nan):
+
+def interpolation1d(xd, yd, xi, kind="cubic", bounds_error=False, fill_value=np.nan):
     from scipy.interpolate import interp1d
 
-    f = interp1d(xd,yd,kind=kind,bounds_error=bounds_error, fill_value=fill_value)
+    f = interp1d(xd, yd, kind=kind, bounds_error=bounds_error,
+                 fill_value=fill_value)
     return f(xi)
 
-def average1d(xd,yd,wd,xa,width,minpoint=2):
-    idx = np.where(wd>0)
+
+def average1d(xd, yd, wd, xa, width, minpoint=2):
+    idx = np.where(wd > 0)
     xd2 = xd[idx]
     yd2 = yd[idx]
     wd2 = wd[idx]
