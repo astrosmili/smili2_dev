@@ -24,13 +24,13 @@ class ScanData(ZarrDataset):
 
     def segment_scans(self, tap=10*SEC):
         """
-        Segment scans by a given accumulation period. Generate a pandas 
+        Segment scans by a given accumulation period. Generate a pandas
         DataFrame storeing mjd, dmjd (accumulation period) and scanid.
 
         Args:
             tap (float or astropy.Quantity, optional):
                 Accumulation Period. Negative gives timestamps for scan-averaged data.
-                Defaults to 10 seconds. If float is specifed, the unit is 
+                Defaults to 10 seconds. If float is specifed, the unit is
                 assumuted to be seconds.
 
         Returns:
@@ -54,7 +54,6 @@ class ScanData(ZarrDataset):
         def gen_timetable(mjdst, mjded, tap, scanid):
             from numpy import arange
             from pandas import DataFrame
-            from ....util import warn
 
             # scan length
             tscan = mjded - mjdst

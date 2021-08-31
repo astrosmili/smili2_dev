@@ -52,7 +52,6 @@ def uvfits2UVData(inuvfits, outzarr, scangap=None, nseg=2, printlevel=0):
         uvdata.UVData object
     """
     import astropy.io.fits as pf
-    import os
     from .zarr import zarr2UVData
     import zarr
 
@@ -301,7 +300,7 @@ def uvfits2ant(antab):
     Returns:
         AntData: array information in SMILI format
     """
-    from numpy import asarray, zeros, ones
+    from numpy import asarray, zeros, ones, unique
     from ..ant.ant import AntData
     from xarray import Dataset
 
@@ -342,6 +341,15 @@ def uvfits2ant(antab):
             logger.warning("MNTSTA %d at Station %s is not supported currently." % (
                 mntsta[i], antname[i]))
 
+    # check polarization
+    pola = unique(antab.data["POLTYA"])
+    polb = unique(antab.data["POLTYB"])
+    if len(pola) > 1 or len(polb) > 1:
+        msg = "POLTYA or POLTYB have more than a single polarization"
+        logger.error(msg)
+        raise ValueError(msg)
+    stokes = [pola[0], polb[0]]
+
     # assume all of them are ground array
     anttype = asarray(["g" for i in range(Nant)], dtype="U8")
 
@@ -356,6 +364,7 @@ def uvfits2ant(antab):
                 fr_el_coeff=("ant", fr_el_coeff),
                 fr_offset=("ant", fr_offset),
                 anttype=("ant", anttype),
+                stokes=("stokes", stokes)
             ),
             attrs=dict(
                 name=name,

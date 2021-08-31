@@ -32,8 +32,9 @@ class AntData(ZarrDataset):
             ["ant"], 0., "Coeffcient for the elevation angle to compute the field rotation angle."),
         fr_offset=(
             ["ant"], 0., "Offset angle in degree to compute the field rotation angle."),
-        sefd0=(["ant"], 1000., "Zenith SEFD in Jy"),
+        sefd0=(["ant", "stokes"], 1000., "Zenith SEFD in Jy"),
         tau0=(["ant"], 0., "Zenith opacity"),
+        stokes=(["stokes"], ["R", "L"], "Stokes Parameters"),
     )
 
     def init_coords(self):
