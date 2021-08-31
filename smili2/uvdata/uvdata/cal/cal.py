@@ -164,6 +164,23 @@ class CalData(ZarrDataset):
         return srccoord
 
     def gen_vistab(self, full_stokes=True, nproc=-1):
+        """
+        Generate empty visdata. 
+
+        Args:
+            full_stokes (bool, optional): 
+                If True, generate full stokes data sets including cross polarization
+                terms. If False, generate only dual stokes data sets (i.e. [RR, LL] or [XX, YY]).
+                If caldata have only single polarization, this option will be 
+                ignored and just single polarization data will be created. 
+                Defaults to True.
+            nproc (int, optional): 
+                The number of processes used by ray. nproc=-1 doesn't use ray
+                (i.e. single processing), nproc=0 uses the maximum number of
+                CPUs.
+        Returns:
+            uvdata.uvdata.VisTable object
+        """
         from astropy.coordinates import FK5
         from astropy.time import Time
         from numpy import concatenate, full, int64, zeros
@@ -218,7 +235,10 @@ class CalData(ZarrDataset):
             ) for ibl in range(Nbl)]
         else:
             import ray
-            ray.init(num_cpus=nproc, ignore_reinit_error=True)
+            if nproc == 0:
+                ray.init(num_cpus=None, ignore_reinit_error=True)
+            else:
+                ray.init(num_cpus=nproc, ignore_reinit_error=True)
             remote_func = ray.remote(_calds2uvw_baseline)
             outputs = [remote_func.remote(
                 antid1=blids[ibl][0],
@@ -290,6 +310,21 @@ class CalData(ZarrDataset):
 
 
 def _calds2uvw_baseline(antid1, antid2, calds, ra, dec, polidxs):
+    """
+    Support function for CalData.gen_vistab(). This function will generate
+    a subset of coordinate data (e.g. u, v, w, sigma) for a given antenna combination.
+
+    Args:
+        antid1 ([type]): [description]
+        antid2 ([type]): [description]
+        calds ([type]): [description]
+        ra ([type]): [description]
+        dec ([type]): [description]
+        polidxs ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
     from numpy import full, zeros, sqrt, logical_and, where
     from itertools import product
     from ....util.units import HOUR2RAD
