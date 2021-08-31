@@ -12,8 +12,9 @@ __author__ = "Smili Developer Team"
 # numerical packages
 import numpy as np
 
-# internal
-from ..util import warn
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 # Class for the Fourier Transformation
@@ -25,7 +26,7 @@ class NFFT_Image(object):
     A class of NFFT functions for 2D image
     '''
 
-    def __init__(self, u, v, dx, nx, dy=None, ny=None, ftsign=1, kernelfunc=None):
+    def __init__(self, u, v, dx, nx, dy=None, ny=None, ftsign=1):
         '''
         Initialize the Fourier Transform functions
 
@@ -62,13 +63,14 @@ class NFFT_Image(object):
             ny = nx
         #   sign of dx or dy
         if dx > 0:
-            warn(
+            logger.warning(
                 "The pixel increment dx for RA is positive. (usually negative for astronomical images)")
         if dy < 0:
-            warn("The pixel increment dy for Dec is negative. (usually positive for astronomical images)")
+            logger.warning(
+                "The pixel increment dy for Dec is negative. (usually positive for astronomical images)")
         #   sign of the Fourier exponent
         if np.sign(ftsign) <= 0:
-            warn("Non standard sign of the Fourier exponent.")
+            logger.warning("Non standard sign of the Fourier exponent.")
 
         # the size of u & v vectors
         Nuv = u.size
@@ -93,12 +95,6 @@ class NFFT_Image(object):
         self.adjoint = self.nfft2d_adjoint
         self.adjoint_real = self.nfft2d_adjoint_real
 
-        # self pre-compute the kernel function
-        if kernelfunc is not None:
-            self.viskernel = kernelfunc(u, v)
-        else:
-            self.viskernel = 1
-
     def nfft2d_forward(self, I2d):
         '''
         Two-dimensional Forward Non-uniform Fast Fourier Transform
@@ -110,7 +106,7 @@ class NFFT_Image(object):
             complex visibilities in one dimensional numpy array
         '''
         self.plan.f_hat = I2d
-        return self.plan.trafo()*self.viskernel
+        return self.plan.trafo()
 
     def nfft2d_adjoint(self, Vcmp):
         '''
@@ -122,7 +118,7 @@ class NFFT_Image(object):
         Returns:
             image in two dimensional numpy array
         '''
-        self.plan.f = Vcmp/self.viskernel
+        self.plan.f = Vcmp
         return self.plan.adjoint()
 
     def nfft2d_adjoint_real(self, Vcmp):
@@ -135,5 +131,5 @@ class NFFT_Image(object):
         Returns:
             image in two dimensional numpy array
         '''
-        self.plan.f = Vcmp/self.viskernel
+        self.plan.f = Vcmp
         return np.real(self.plan.adjoint())

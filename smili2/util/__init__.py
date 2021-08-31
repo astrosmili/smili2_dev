@@ -9,5 +9,4 @@ __author__ = "Smili Developer Team"
 # ------------------------------------------------------------------------------
 from .misc import *
 from .plot import matplotlibrc, reset_matplotlibrc
-from .terminal import prt, warn
 from .gp import gp_interp

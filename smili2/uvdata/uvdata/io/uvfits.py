@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 from numpy import int64
+
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 # Dictionary for Stokes labels and their IDs in UVFITS
 stokesid2name = {
@@ -109,8 +113,6 @@ def uvfits2HDUs(hdulist):
         HDU for AIPS AN Table
         HDU for AIPS FQ Table
     """
-    from ....util.terminal import warn
-
     hduinfo = hdulist.info(output=False)
     Nhdu = len(hduinfo)
 
@@ -121,18 +123,18 @@ def uvfits2HDUs(hdulist):
         hduname = hduinfo[ihdu][1]
         if "PRIMARY" in hduname.upper():
             if ghdu is not None:
-                warn("This UVFITS has more than two Primary HDUs.")
-                warn("The later one will be taken.")
+                logger.warning("This UVFITS has more than two Primary HDUs.")
+                logger.warning("The later one will be taken.")
             ghdu = hdulist[ihdu]
         elif "FQ" in hduname.upper():
             if fqtab is not None:
-                warn("This UVFITS has more than two AIPS FQ tables.")
-                warn("The later one will be taken.")
+                logger.warning("This UVFITS has more than two AIPS FQ tables.")
+                logger.warning("The later one will be taken.")
             fqtab = hdulist[ihdu]
         elif "AN" in hduname.upper():
             if antab is not None:
-                warn("This UVFITS has more than two AIPS AN tables.")
-                warn("The later one will be taken.")
+                logger.warning("This UVFITS has more than two AIPS AN tables.")
+                logger.warning("The later one will be taken.")
             antab = hdulist[ihdu]
 
     return ghdu, antab, fqtab
@@ -148,7 +150,6 @@ def uvfits2vistab(ghdu):
     Returns:
         VisData: complex visibility in SMILI format
     """
-    from ....util import warn
     from ..vis.vistab import VisTable
     from astropy.time import Time
     from xarray import Dataset
@@ -161,8 +162,9 @@ def uvfits2vistab(ghdu):
     Ndata, Ndec, Nra, dammy, dammy, Nstokes, dammy = ghdu.data.data.shape
     del dammy
     if Nra > 1 or Ndec > 1:
-        warn("GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
-        warn("We will pick up only the first one.")
+        logger.warning(
+            "GroupHDU has more than single coordinates (Nra, Ndec)=(%d, %d)." % (Nra, Ndec))
+        logger.warning("We will pick up only the first one.")
     vis_ghdu = ghdu.data.data[:, 0, 0, :]  # to [data,if,ch,stokes,complex]
 
     # get visibilities, errors, and flag (flagged, removed,)
@@ -230,14 +232,17 @@ def uvfits2vistab(ghdu):
     # warn if it is an apparently multi source file
     if paridxes[6] is not None:
         if len(unique(srcid)) > 1:
-            warn("Group HDU contains data on more than a single source.")
-            warn(
+            logger.warning(
+                "Group HDU contains data on more than a single source.")
+            logger.warning(
                 "It will likely cause a problem since SMILI assumes a singlesource UVFITS.")
 
     # Integration time in the unit of day
     if paridxes[7] is None:
-        warn("Group HDU do not have a random parameter for the integration time.")
-        warn("It will be estimated with a minimal time interval of data.")
+        logger.warning(
+            "Group HDU do not have a random parameter for the integration time.")
+        logger.warning(
+            "It will be estimated with a minimal time interval of data.")
         dmjd = min(abs(diff(unique(mjd))))
     else:
         dmjd = inttim/86400
@@ -245,8 +250,9 @@ def uvfits2vistab(ghdu):
     # warn if data are apparently with multi IF setups
     if paridxes[8] is not None:
         if len(unique(freqsel)) > 1:
-            warn("Group HDU contains data on more than a frequency setup.")
-            warn(
+            logger.warning(
+                "Group HDU contains data on more than a frequency setup.")
+            logger.warning(
                 "It will likely cause a problem since SMILI assumes a UVFITS with a single setup.")
 
     # antenna ID
@@ -255,8 +261,9 @@ def uvfits2vistab(ghdu):
     antid1 = int64(bl//256)-1
     antid2 = int64(bl % 256)-1
     if len(unique(subarray)) > 1:
-        warn("Group HDU contains data with 2 or more subarrays.")
-        warn("It will likely cause a problem, since SMILI assumes UVFITS for a single subarray.")
+        logger.warning("Group HDU contains data with 2 or more subarrays.")
+        logger.warning(
+            "It will likely cause a problem, since SMILI assumes UVFITS for a single subarray.")
 
     # read polarizations
     stokesids = ghdu.header["CDELT3"] * \
@@ -295,7 +302,6 @@ def uvfits2ant(antab):
         AntData: array information in SMILI format
     """
     from numpy import asarray, zeros, ones
-    from ....util.terminal import warn
     from ..ant.ant import AntData
     from xarray import Dataset
 
@@ -333,7 +339,7 @@ def uvfits2ant(antab):
             fr_pa_coeff[i] = 1
             fr_el_coeff[i] = -1
         else:
-            warn("[WARNING] MNTSTA %d at Station %s is not supported currently." % (
+            logger.warning("MNTSTA %d at Station %s is not supported currently." % (
                 mntsta[i], antname[i]))
 
     # assume all of them are ground array
@@ -373,7 +379,6 @@ def uvfits2freq(ghdu, antab, fqtab):
     Returns:
         FreqData: Loaded frequency table
     """
-    from ....util.terminal import warn
     from ..freq import FreqData
     from xarray import Dataset
     from numpy import float64
@@ -390,7 +395,8 @@ def uvfits2freq(ghdu, antab, fqtab):
     # read data from frequency table
     nfrqsel = len(fqtab.data["FRQSEL"])
     if nfrqsel > 1:
-        warn("Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
+        logger.warning(
+            "Input FQ Tables have more than single FRQSEL. We only handle a uvfits with single FRQSEL.")
 
     # read meta information
     def arraylize(input):

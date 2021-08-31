@@ -5,6 +5,10 @@
 from ....util.zarrds import ZarrDataset
 from ....util.units import DAY, MIN, SEC
 
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 class ScanData(ZarrDataset):
     """
@@ -60,7 +64,7 @@ class ScanData(ZarrDataset):
                 tap_tmp = tscan
             else:
                 if tap > tscan:
-                    warn("Scan {0:d}: tap is larger than the scan length. Use scan length for tap.".format(
+                    logger.warning("Scan {0:d}: tap is larger than the scan length. Use scan length for tap.".format(
                         scanid))
                     tap_tmp = tscan
                 else:

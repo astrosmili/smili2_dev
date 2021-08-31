@@ -5,6 +5,10 @@ This is a sub-module of smili2 handling image data.
 '''
 __author__ = "Smili Developer Team"
 
+# Logger
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 def load_fits_casa(infits):
     """
@@ -21,7 +25,6 @@ def load_fits_casa(infits):
     from astropy.time import Time
     from ....util.units import DEG
     from ..image import gen_image
-    from ....util.terminal import warn
 
     # FITS file: name or hdulidt
     isfile = False
@@ -100,7 +103,7 @@ def load_fits_casa(infits):
     else:
         equinox = tim
         if coordsys != "icrs":
-            warn(
+            logger.warning(
                 "Input fits does not have a header information for equinox. Use the Date-OBS.")
     #   argument for skycoord
     scargs = dict(
