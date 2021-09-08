@@ -5,7 +5,7 @@ from astropy.time import Time, TimeDelta
 from xarray import Dataset
 import smili2.uvdata as uv
  
-zarr =  '/home/benkev/ALMA/J2203TSTCL5_SUBSP_zarr'
+zarr =  '/home/benkev/ALMA/J2203TSTCL5_SUBSP.zarr'
 
 zuv = uv.load_zarr(zarr)
 
