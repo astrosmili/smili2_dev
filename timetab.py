@@ -7,9 +7,9 @@ from astropy.time import Time, TimeDelta
 # uvd = uvdata.load_uvfits("/data-smili/J2203TSTCL5_SUBSP.uvfits", \
 #                          "/data-smili/J2203TSTCL5_SUBSP.zarr")
 
-# uvd = uvdata.load_zarr("/data-smili/J2203TSTCL5_SUBSP.zarr")
+uvd = uvdata.load_zarr("/data-smili/J2203TSTCL5_SUBSP.zarr")
 
-uvd = uvdata.load_zarr("/home/benkev/ALMA/J2203TSTCL5_SUBSP.zarr")
+# uvd = uvdata.load_zarr("/home/benkev/ALMA/J2203TSTCL5_SUBSP.zarr")
 
 timetab_scan = uvd.scan.segment_scans(tap=-1)
 
